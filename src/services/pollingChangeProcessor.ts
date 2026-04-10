@@ -19,6 +19,7 @@ import { DatabaseService } from '../utils/database.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { EventParticipantRepository } from '../repositories/eventParticipantRepository.js';
+import { getPolledRowPrimaryKey } from '../repositories/pollingRepository.js';
 
 // Centralized deduplication: preEventId -> prevents duplicate projection transactions
 const projectionInProgress = new Set<string>();
@@ -40,10 +41,10 @@ export class PollingChangeProcessor {
         isNew: boolean,
         pollCycleId: string
     ): Promise<void> {
-        const rowId = row.id;
+        const rowId = getPolledRowPrimaryKey(table, row);
 
-        if (!rowId) {
-            logger.warn('No ID found in polled row', { table, pollCycleId });
+        if (!Number.isFinite(rowId)) {
+            logger.warn('No primary key found in polled row', { table, pollCycleId });
             return;
         }
 
@@ -159,7 +160,7 @@ export class PollingChangeProcessor {
      * PARTICIPANTS - Match if not linked, project positions if position exists
      */
     private static async processParticipant(row: any, isNew: boolean, pollCycleId: string): Promise<void> {
-        const rowId = row.id;
+        const rowId = getPolledRowPrimaryKey(TABLES.PROVIDER_EVENT_PARTICIPANTS, row);
         const providerEventId = row.provider_event_id;
         const alreadyMatched = (row.pre_event_participant_id ?? row.pre_event_entry_id) != null;
 

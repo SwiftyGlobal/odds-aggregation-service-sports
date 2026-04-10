@@ -131,7 +131,6 @@ export class OddsProcessingService {
             // Aggregate odds for each participant and market combination
             for (const participant of preEventParticipants) {
                 const canonicalOptionKey = participant.ref_id || String(participant.id);
-                console.log('---------------------------------------------------------canonicalOptionKey', canonicalOptionKey);
 
                 for (const preMarket of preMarkets) {
                     await this.aggregateParticipantMarketOdds(
@@ -196,9 +195,10 @@ export class OddsProcessingService {
                         continue;
                     }
 
+                    const providerEntryId = providerEventParticipant.id;
                     const odds = await OddsRepository.getByMarketAndParticipantWithCutoff(
                         providerMarket.id,
-                        providerEventParticipant.id,
+                        providerEntryId,
                         cutoffTime
                     );
 
@@ -520,12 +520,17 @@ export class OddsProcessingService {
                     .join(TABLES.PROVIDER_ODDS, `${PROVIDER_ODDS_HISTORY}.provider_selection_id`, `${TABLES.PROVIDER_ODDS}.id`)
                     .join(TABLES.PROVIDER_EVENTS, `${TABLES.PROVIDER_ODDS}.provider_event_id`, `${TABLES.PROVIDER_EVENTS}.id`)
                     .join(TABLES.PROVIDER_MARKETS, `${TABLES.PROVIDER_ODDS}.provider_market_id`, `${TABLES.PROVIDER_MARKETS}.id`)
-                    .leftJoin(TABLES.PROVIDER_EVENT_PARTICIPANTS, `${TABLES.PROVIDER_ODDS}.provider_event_entry_id`, `${TABLES.PROVIDER_EVENT_PARTICIPANTS}.id`)
+                    .leftJoin(
+                        TABLES.PROVIDER_EVENT_PARTICIPANTS,
+                        `${TABLES.PROVIDER_ODDS}.provider_event_entry_id`,
+                        `${TABLES.PROVIDER_EVENT_PARTICIPANTS}.id`
+                    )
                     .where(`${TABLES.PROVIDER_EVENTS}.pre_event_id`, preEventId)
                     .where(`${TABLES.PROVIDER_MARKETS}.pre_market_id`, preOdd.market_id)
                     .where(function() {
-                        if (preOdd.event_entry_id) {
-                            this.where(`${TABLES.PROVIDER_EVENT_PARTICIPANTS}.pre_event_entry_id`, preOdd.event_entry_id);
+                        const entryId = preOdd.pre_event_entry_id ?? preOdd.pre_event_participant_id ?? preOdd.event_entry_id;
+                        if (entryId) {
+                            this.where(`${TABLES.PROVIDER_EVENT_PARTICIPANTS}.pre_event_entry_id`, entryId);
                         } else {
                             this.whereNull(`${TABLES.PROVIDER_ODDS}.provider_event_entry_id`);
                         }

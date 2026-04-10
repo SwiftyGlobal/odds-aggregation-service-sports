@@ -43,7 +43,11 @@ export const buildPreOddsDeltaPayload = (params: {
         schema_version: OUTBOX_SCHEMA_VERSION,
         version: preOdds?.version ?? 1,
         event_id: preOdds?.event_id ?? preOdds?.pre_event_id ?? null,
-        participant_id: preOdds?.event_entry_id ?? preOdds?.pre_event_participant_id ?? null,
+        participant_id:
+            preOdds?.pre_event_entry_id ??
+            preOdds?.event_entry_id ??
+            preOdds?.pre_event_participant_id ??
+            null,
         market_id: preOdds?.market_id ?? preOdds?.pre_market_id ?? null,
         option_key: preOdds?.option_key ?? null,
         selection_key: selectionKey,
@@ -73,9 +77,9 @@ export const buildPreEventFullPayload = (params: {
             const extraInfo = parseJson(p.extra_info, {});
 
             const entry: Record<string, any> = {
-                id: p.id ?? null,
-                display_name: p.display_name ?? null,
-                slug: p.slug ?? null,
+                id: p.id ?? p.entry_id ?? null,
+                display_name: p.display_name ?? p.name ?? null,
+                slug: p.slug ?? p.ref_id ?? null,
                 position: p.position ?? null,
             };
 

@@ -124,7 +124,9 @@ export class OddsAggregationService {
                     return;
                 }
 
-                if (!providerEventParticipant.pre_event_participant_id) {
+                const linkedEntryId =
+                    providerEventParticipant.pre_event_entry_id ?? providerEventParticipant.pre_event_participant_id;
+                if (!linkedEntryId) {
                     logger.info('Event participant not matched yet, skipping odds aggregation', {
                         providerOddsId,
                         providerEventParticipantId: providerOdds.provider_event_participant_id,
@@ -133,9 +135,8 @@ export class OddsAggregationService {
                     return;
                 }
 
-                preEventParticipantId = providerEventParticipant.pre_event_participant_id as number;
+                preEventParticipantId = linkedEntryId as number;
 
-                // Derive canonical option_key from pre-event participant ref_id
                 const preParticipant = await PreEventParticipantRepository.getById(
                     preEventParticipantId,
                     transaction

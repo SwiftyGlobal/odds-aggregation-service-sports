@@ -7,7 +7,7 @@
 import PQueue from 'p-queue';
 import { logger } from '../utils/logger.js';
 import { POLLING_CONSTANTS } from '../constants/polling.js';
-import { PollingRepository } from '../repositories/pollingRepository.js';
+import { PollingRepository, getPolledRowPrimaryKey } from '../repositories/pollingRepository.js';
 import { PollingChangeProcessor } from './pollingChangeProcessor.js';
 import { isTransientError, getErrorCode } from '../utils/errorClassification.js';
 import { FailedEventRepository } from '../repositories/cdcFailedEventRepository.js';
@@ -139,7 +139,7 @@ export class PollingService {
                 const newBoundaryIds = new Set<number>();
                 for (const row of rows) {
                     if (new Date(row.updated_at).getTime() === maxUpdatedAtTime) {
-                        newBoundaryIds.add(row.id);
+                        newBoundaryIds.add(getPolledRowPrimaryKey(table, row));
                     }
                 }
 
@@ -150,7 +150,7 @@ export class PollingService {
 
                     // Skip rows that were at the exact boundary of the previous poll
                     // and were already processed
-                    if (isAtPreviousBoundary && state.boundaryIds.has(row.id)) {
+                    if (isAtPreviousBoundary && state.boundaryIds.has(getPolledRowPrimaryKey(table, row))) {
                         continue;
                     }
 
@@ -210,7 +210,7 @@ export class PollingService {
                         const delay = POLLING_CONSTANTS.POLL_RETRY_BASE_MS * attempt;
                         logger.warn('Transient polling error, retrying', {
                             table,
-                            rowId: row.id,
+                            rowId: getPolledRowPrimaryKey(table, row),
                             attempt,
                             maxRetries: POLLING_CONSTANTS.POLL_RETRY_MAX,
                             delayMs: delay,
@@ -227,7 +227,7 @@ export class PollingService {
             // All retries exhausted or permanent error
             logger.error('Polling processing failed permanently', lastError as Error, {
                 table,
-                rowId: row.id,
+                rowId: getPolledRowPrimaryKey(table, row),
                 pollCycleId,
                 retriesExhausted: POLLING_CONSTANTS.POLL_RETRY_MAX
             });
@@ -237,14 +237,14 @@ export class PollingService {
                     lsn: pollCycleId,
                     tableName: table,
                     action: isNew ? 'INSERT' : 'UPDATE',
-                    payload: { id: row.id, updated_at: row.updated_at },
+                    payload: { id: getPolledRowPrimaryKey(table, row), updated_at: row.updated_at },
                     errorMessage: lastError?.message ?? 'Unknown error',
                     errorCode: getErrorCode(lastError)
                 });
             } catch (insertError) {
                 logger.error('Failed to save polling failed event record', insertError as Error, {
                     table,
-                    rowId: row.id
+                    rowId: getPolledRowPrimaryKey(table, row)
                 });
             }
         });

@@ -460,23 +460,17 @@ export class PreEventProjectionService {
             return [];
         }
 
-        // Query pre_odds to find participants without SP in display_odds
-        // SP is stored in display_odds->'sp'
-        const participantsWithoutSp = await trx.raw(`
-            SELECT pep.id
-            FROM ${TABLES.PRE_EVENT_PARTICIPANTS} pep
-            WHERE pep.id = ANY(?)
-            AND pep.event_id = ?
-            AND NOT EXISTS (
-                SELECT 1 FROM ${TABLES.PRE_ODDS} po
-                WHERE po.event_entry_id = pep.id
-                AND po.display_odds IS NOT NULL
-                AND po.display_odds->'sp' IS NOT NULL
-                AND po.display_odds->>'sp' != 'null'
-            )
-        `, [participantIds, preEventId]);
+        const withSpRows = await trx(TABLES.PRE_ODDS)
+            .where('pre_event_id', preEventId)
+            .whereIn('pre_event_entry_id', participantIds)
+            .whereRaw(`display_prices->'sp' IS NOT NULL`)
+            .whereRaw(`display_prices->>'sp' IS DISTINCT FROM 'null'`)
+            .distinct('pre_event_entry_id');
 
-        return participantsWithoutSp.rows.map((r: any) => r.id);
+        const hasSp = new Set(
+            withSpRows.map((r: { pre_event_entry_id: number }) => Number(r.pre_event_entry_id))
+        );
+        return participantIds.filter((id) => !hasSp.has(id));
     }
 
     /**

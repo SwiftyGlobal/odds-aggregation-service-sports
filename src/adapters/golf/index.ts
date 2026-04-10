@@ -12,6 +12,7 @@ export const golfAdapter: SportAdapter = {
     },
     tables: {
         PROVIDER_SPORTS: 'fs_provider_sports',
+        PROVIDER_PARTICIPANTS: 'fs_provider_participants',
         PROVIDER_COMPETITIONS: 'fs_provider_event_groups',
         PROVIDER_EVENTS: 'fs_provider_events',
         PROVIDER_MARKETS: 'fs_provider_markets',
@@ -21,6 +22,7 @@ export const golfAdapter: SportAdapter = {
         PRE_COMPETITIONS: 'fs_pre_event_groups',
         PRE_EVENTS: 'fs_pre_events',
         PRE_MARKETS: 'fs_pre_markets',
+        PRE_PARTICIPANTS: 'fs_pre_participants',
         PRE_EVENT_PARTICIPANTS: 'fs_pre_event_entries',
         PRE_ODDS: 'fs_pre_selections',
         PRE_MARKET_TYPES: 'fs_ref_market_templates',

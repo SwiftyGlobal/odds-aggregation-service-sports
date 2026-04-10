@@ -1,6 +1,6 @@
 /**
  * Pre Event Participant Repository
- * Database operations for pre-event-participants
+ * Database operations for canonical event entries (fs_pre_event_entries) and participants (fs_pre_participants)
  */
 
 import { KnexClient } from '../config/knex.js';
@@ -8,22 +8,14 @@ import { Knex } from 'knex';
 import { TABLES } from '../constants/tables.js';
 import { PreEventParticipantHistoryRepository } from './preEventParticipantHistoryRepository.js';
 import { logger } from '../utils/logger.js';
-import { buildParticipantRefId, extractParticipantName } from '../utils/refIdUtils.js';
 import { getSportAdapter } from '../adapters/index.js';
 
-/**
- * Parse extra_info from DB row (handles both string and object forms)
- */
-function parseExtraInfo(raw: any): Record<string, any> | null {
+function parseMetadata(raw: any): Record<string, any> | null {
     if (!raw) return null;
     if (typeof raw === 'object') return raw;
     try { return JSON.parse(raw); } catch { return null; }
 }
 
-/**
- * Normalize a string for comparison — case-insensitive, trimmed.
- * Returns null for null/undefined/empty so null === null comparisons work.
- */
 function normalize(val: string | null | undefined): string | null {
     if (!val) return null;
     const trimmed = val.trim().toLowerCase();
@@ -33,92 +25,105 @@ function normalize(val: string | null | undefined): string | null {
 export class PreEventParticipantRepository {
     private static db = KnexClient.getInstance();
 
+    static readonly SHORT_NAME_MAX_LEN = 100;
+
+    static truncateShortName(s: string): string {
+        return s.length <= this.SHORT_NAME_MAX_LEN ? s : s.slice(0, this.SHORT_NAME_MAX_LEN);
+    }
+
     /**
-     * Create or update pre-event-participant with JSONB merge
-     * Now uses ref_id for uniqueness instead of pre_participant_id
-     * ref_id is auto-generated from parent event's ref_id + participant name
+     * Find or create fs_pre_participants row keyed by (pre_sport_id, short_name).
+     */
+    static async ensurePreParticipant(
+        preSportId: number,
+        shortNameRaw: string,
+        name: string,
+        trx?: Knex.Transaction
+    ): Promise<number> {
+        const db = trx || this.db;
+        const short_name = this.truncateShortName(shortNameRaw);
+        const row = await db(TABLES.PRE_PARTICIPANTS)
+            .where({ pre_sport_id: preSportId, short_name })
+            .first();
+
+        if (row) {
+            if (name && String(row.name) !== name) {
+                await db(TABLES.PRE_PARTICIPANTS)
+                    .where('id', row.id)
+                    .update({ name, updated_at: new Date() });
+            }
+            return Number(row.id);
+        }
+
+        const [ins] = await db(TABLES.PRE_PARTICIPANTS)
+            .insert({
+                pre_sport_id: preSportId,
+                name,
+                short_name,
+                participant_type: 'individual',
+                metadata: db.raw(`'{}'::jsonb`),
+                created_at: new Date(),
+                updated_at: new Date(),
+            })
+            .returning('id');
+
+        return Number(ins.id);
+    }
+
+    /**
+     * Create or update fs_pre_event_entries on (pre_event_id, pre_participant_id); merge metadata jsonb.
      */
     static async createOrUpdatePreEventParticipant(
         data: {
             pre_event_id: number;
-            provider_participant_ref_id: string;  // provider's participant_ref_id (used as fallback for matching)
+            pre_participant_id: number;
+            provider_participant_ref_id: string;
             draw_number?: number;
             display_name?: string;
             slug?: string;
             jockey?: string;
             participant_status_id?: number;
             position?: number;
-            /** Canonical entry status — one of ENTRY_STATUS_VALUES. Omit to keep existing / use DB default. */
             entry_status?: string;
-            /** Canonical entry role — one of ENTRY_ROLE_VALUES. Omit to keep existing / use DB default. */
             role?: string;
-            /** Tournament seed (e.g. tennis seeding). */
             seed?: number | null;
-            /** Starting draw position (e.g. golf tee-time order). */
             draw_position?: number | null;
-            /** Final finishing position after settlement. */
             finishing_position?: number | null;
-            extra_info: string; // JSON string
+            extra_info: string;
         },
         trx?: Knex.Transaction
     ): Promise<number> {
         const db = trx || this.db;
 
-        // Generate stable ref_id from event ref_id + participant name
-        // e.g. HR.202603051700.USA.charles_town.senorita_jerico
-        // Always run through extractParticipantName() to handle cases where slug/display_name
-        // contain full provider ref_ids (e.g. "202603051900.T.GBR.newcastle.6.castan")
-        const rawName = data.slug || data.display_name || data.provider_participant_ref_id;
-        const participantName = extractParticipantName(rawName);
-        let refId: string;
-
-        const parentEvent = await db(TABLES.PRE_EVENTS)
-            .where('id', data.pre_event_id)
-            .select('event_ref_id')
-            .first();
-
-        if (parentEvent?.event_ref_id && participantName) {
-            refId = buildParticipantRefId(parentEvent.event_ref_id, participantName);
-        } else {
-            // Fallback: use provider's participant_ref_id directly
-            refId = data.provider_participant_ref_id;
-        }
-
-        // Read existing record before upsert to detect changes
-        const existing = await db(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where({
-                pre_event_id: data.pre_event_id,
-                entry_ref_id: refId
-            })
+        const existing = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.pre_event_id', data.pre_event_id)
+            .where('pee.pre_participant_id', data.pre_participant_id)
+            .select('pee.*', 'p.name as display_name')
             .first();
 
         const isNew = !existing;
 
         const adapter = getSportAdapter();
 
-        // Build insert/merge data — only include sport-specific columns when adapter supports them
         const insertData: Record<string, any> = {
             pre_event_id: data.pre_event_id,
-            entry_ref_id: refId,
-            display_name: data.display_name,
+            pre_participant_id: data.pre_participant_id,
             position: data.position,
-            extra_info: data.extra_info,
+            metadata: db.raw(`COALESCE(?::jsonb, '{}'::jsonb)`, [data.extra_info]),
             created_at: new Date(),
-            updated_at: new Date()
+            updated_at: new Date(),
         };
 
         const mergeData: Record<string, any> = {
-            display_name: data.display_name,
             position: data.position,
-            // Merge JSONB: existing || new (new fields override existing, but keep all unique fields)
-            extra_info: db.raw(`COALESCE(${TABLES.PRE_EVENT_PARTICIPANTS}.extra_info, '{}'::jsonb) || ?::jsonb`, [data.extra_info]),
-            updated_at: new Date()
+            metadata: db.raw(
+                `COALESCE(${TABLES.PRE_EVENT_PARTICIPANTS}.metadata, '{}'::jsonb) || ?::jsonb`,
+                [data.extra_info]
+            ),
+            updated_at: new Date(),
         };
 
-        // Propagate canonical-entry fields from the provider layer.
-        // Only set when the caller supplied a value — leaving the column untouched
-        // on merge preserves whatever the previous provider wrote, and lets the
-        // DB default ('active' / 'participant') apply on insert.
         if (data.role !== undefined) {
             insertData.role = data.role;
             mergeData.role = data.role;
@@ -146,50 +151,46 @@ export class PreEventParticipantRepository {
             mergeData,
         });
 
-        const [preEventParticipant] = await db(TABLES.PRE_EVENT_PARTICIPANTS)
+        const [preRow] = await db(TABLES.PRE_EVENT_PARTICIPANTS)
             .insert(insertData)
-            .onConflict(['pre_event_id', 'entry_ref_id'])
+            .onConflict(['pre_event_id', 'pre_participant_id'])
             .merge(mergeData)
             .returning('id');
 
-        const participantId = preEventParticipant.id;
+        const entryId = Number(preRow.id);
         const newStatusId = data.participant_status_id || adapter.hooks.participant.getDefaultParticipantStatusId();
 
         const historyPolicy = adapter.hooks.participant.getHistoryPolicy();
-        // Only write history for sports that track participant history
         if (historyPolicy.trackHistory && TABLES.PRE_EVENT_PARTICIPANTS_HISTORY) {
-            // Re-read after upsert to get the actual merged extra_info from DB
-            const afterUpsert = await db(TABLES.PRE_EVENT_PARTICIPANTS)
-                .where('id', participantId)
+            const afterUpsert = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+                .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+                .where('pee.id', entryId)
+                .select('pee.*', 'p.name as display_name')
                 .first();
 
-            const mergedExtraInfo = parseExtraInfo(afterUpsert?.extra_info);
+            const mergedMeta = parseMetadata(afterUpsert?.metadata);
 
-            // Build full snapshot values (what the record looks like NOW after upsert)
             const snapshotPosition = afterUpsert?.position != null ? String(afterUpsert.position) : null;
-            const snapshotJockey = historyPolicy.includeJockeyColumn ? (afterUpsert?.jockey ?? null) : null;
+            const snapshotJockey = historyPolicy.includeJockeyColumn ? (afterUpsert as any)?.jockey ?? null : null;
             const snapshotRunner = afterUpsert?.display_name ?? null;
-            const snapshotStatusId = afterUpsert?.participant_status_id ?? newStatusId;
+            const snapshotStatusId = (afterUpsert as any)?.participant_status_id ?? newStatusId;
 
-            // Write history records — full snapshots matching provider-layer pattern
             try {
                 if (isNew) {
-                    // Initial creation — record as 'status' with reason: 'initial_creation'
                     const historyRecord: any = {
-                        pre_event_participant_id: participantId,
+                        pre_event_participant_id: entryId,
                         pre_event_id: data.pre_event_id,
                         position: snapshotPosition,
                         participant_status_id: snapshotStatusId,
                         change_type: 'status',
                         extra_info: {
-                            ...mergedExtraInfo,
+                            ...mergedMeta,
                             reason: 'initial_creation',
                             initial_status: snapshotStatusId,
                             initial_display_name: snapshotRunner,
                             initial_position: snapshotPosition,
                         },
                     };
-                    // Only include jockey/runner fields if the adapter policy supports them
                     if (historyPolicy.includeJockeyColumn) {
                         historyRecord.jockey = snapshotJockey;
                         historyRecord.extra_info.initial_jockey = snapshotJockey;
@@ -198,19 +199,17 @@ export class PreEventParticipantRepository {
 
                     await PreEventParticipantHistoryRepository.insert(historyRecord, db as Knex.Transaction);
                 } else {
-                    // Existing participant — detect changes, write full snapshots
-
-                    if (existing.participant_status_id !== newStatusId) {
+                    if ((existing as any).participant_status_id !== newStatusId) {
                         const historyRecord: any = {
-                            pre_event_participant_id: participantId,
+                            pre_event_participant_id: entryId,
                             pre_event_id: data.pre_event_id,
                             position: snapshotPosition,
                             runner: snapshotRunner,
                             participant_status_id: snapshotStatusId,
                             change_type: 'status',
                             extra_info: {
-                                ...mergedExtraInfo,
-                                previous_status_id: existing.participant_status_id,
+                                ...mergedMeta,
+                                previous_status_id: (existing as any).participant_status_id,
                                 new_status_id: newStatusId,
                             },
                         };
@@ -218,10 +217,9 @@ export class PreEventParticipantRepository {
                         await PreEventParticipantHistoryRepository.insert(historyRecord, db as Knex.Transaction);
                     }
 
-                    // Jockey change detection — only for sports with jockeys
-                    if (historyPolicy.includeJockeyColumn && data.jockey && normalize(existing.jockey) !== normalize(data.jockey)) {
+                    if (historyPolicy.includeJockeyColumn && data.jockey && normalize((existing as any).jockey) !== normalize(data.jockey)) {
                         await PreEventParticipantHistoryRepository.insert({
-                            pre_event_participant_id: participantId,
+                            pre_event_participant_id: entryId,
                             pre_event_id: data.pre_event_id,
                             position: snapshotPosition,
                             jockey: data.jockey,
@@ -229,8 +227,8 @@ export class PreEventParticipantRepository {
                             participant_status_id: snapshotStatusId,
                             change_type: 'jockey',
                             extra_info: {
-                                ...mergedExtraInfo,
-                                previous_jockey: existing.jockey,
+                                ...mergedMeta,
+                                previous_jockey: (existing as any).jockey,
                                 new_jockey: data.jockey,
                                 reason: 'jockey_change',
                             },
@@ -239,14 +237,14 @@ export class PreEventParticipantRepository {
 
                     if (data.display_name && normalize(existing.display_name) !== normalize(data.display_name)) {
                         const historyRecord: any = {
-                            pre_event_participant_id: participantId,
+                            pre_event_participant_id: entryId,
                             pre_event_id: data.pre_event_id,
                             position: snapshotPosition,
                             runner: data.display_name,
                             participant_status_id: snapshotStatusId,
                             change_type: 'runner',
                             extra_info: {
-                                ...mergedExtraInfo,
+                                ...mergedMeta,
                                 previous_display_name: existing.display_name,
                                 new_display_name: data.display_name,
                                 reason: 'runner_change',
@@ -258,14 +256,14 @@ export class PreEventParticipantRepository {
 
                     if (data.position != null && existing.position !== data.position) {
                         const historyRecord: any = {
-                            pre_event_participant_id: participantId,
+                            pre_event_participant_id: entryId,
                             pre_event_id: data.pre_event_id,
                             position: String(data.position),
                             runner: snapshotRunner,
                             participant_status_id: snapshotStatusId,
                             change_type: 'position',
                             extra_info: {
-                                ...mergedExtraInfo,
+                                ...mergedMeta,
                                 previous_position: existing.position != null ? String(existing.position) : null,
                                 new_position: String(data.position),
                             },
@@ -275,53 +273,66 @@ export class PreEventParticipantRepository {
                     }
                 }
             } catch (error) {
-                // Log but don't fail the main operation — history is supplementary
                 logger.error('Failed to write pre-event participant history', error as Error, {
-                    preEventParticipantId: participantId,
+                    preEventParticipantId: entryId,
                     preEventId: data.pre_event_id,
                 });
             }
         }
 
-        return participantId;
+        return entryId;
     }
 
     /**
-     * Get pre-event-participant by pre_event_id and ref_id
+     * Get canonical entry by pre_event_id and stable participant short_name (fs_pre_participants.short_name)
      */
     static async getPreEventParticipant(
         preEventId: number,
-        refId: string,
+        participantShortName: string,
         trx?: Knex.Transaction
     ): Promise<any | null> {
         const db = trx || this.db;
-        return await db(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where({
-                pre_event_id: preEventId,
-                entry_ref_id: refId
-            })
+        const sn = this.truncateShortName(participantShortName);
+        const row = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.pre_event_id', preEventId)
+            .where('p.short_name', sn)
+            .select(
+                'pee.*',
+                'pee.id as id',
+                'p.name as display_name',
+                'p.short_name as slug',
+                'p.short_name as ref_id'
+            )
             .first();
+
+        if (!row) return null;
+        return {
+            ...row,
+            extra_info: typeof row.metadata === 'string' ? row.metadata : JSON.stringify(row.metadata ?? {}),
+        };
     }
 
-    /**
-     * Get all pre-event participants for a pre-event
-     *
-     * @param preEventId - The pre-event ID
-     * @param trx - Optional transaction
-     * @returns Array of pre-event participants
-     */
-    static async getByPreEventId(
-        preEventId: number,
-        trx?: Knex.Transaction
-    ): Promise<any[]> {
+    static async getByPreEventId(preEventId: number, trx?: Knex.Transaction): Promise<any[]> {
         const db = trx || this.db;
-        return await db(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where('pre_event_id', preEventId);
+        const rows = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.pre_event_id', preEventId)
+            .select(
+                'pee.*',
+                'pee.id as id',
+                'p.name as display_name',
+                'p.short_name as slug',
+                'p.short_name as ref_id',
+                'p.id as pre_participant_id'
+            );
+
+        return rows.map((row) => ({
+            ...row,
+            extra_info: typeof row.metadata === 'string' ? row.metadata : JSON.stringify(row.metadata ?? {}),
+        }));
     }
 
-    /**
-     * Get matching statistics
-     */
     static async getMatchingStats(): Promise<{
         totalProviderParticipants: number;
         linkedParticipants: number;
@@ -354,102 +365,103 @@ export class PreEventParticipantRepository {
         };
     }
 
-    /**
-     * Update position with source tracking
-     *
-     * @param preEventParticipantId - The pre-event participant ID
-     * @param position - The position to set
-     * @param sourceProviderId - The provider that supplied the position
-     * @param trx - Transaction (required)
-     */
     static async updatePosition(
-        preEventParticipantId: number,
+        preEventEntryId: number,
         position: number,
         sourceProviderId: number,
         trx: Knex.Transaction
     ): Promise<void> {
-        // Read current to check if position actually changed
-        const current = await trx(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where('id', preEventParticipantId)
+        const current = await trx(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.id', preEventEntryId)
+            .select('pee.*', 'p.name as display_name')
             .first();
 
         await trx(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where('id', preEventParticipantId)
+            .where('id', preEventEntryId)
             .update({
                 position,
                 updated_at: new Date()
             });
 
-        // Record position history if value changed — full snapshot (only for sports with status tracking)
         const historyPolicy = getSportAdapter().hooks.participant.getHistoryPolicy();
         if (historyPolicy.trackHistory && TABLES.PRE_EVENT_PARTICIPANTS_HISTORY && current && current.position !== position) {
             try {
-                const mergedExtraInfo = parseExtraInfo(current.extra_info);
+                const mergedMeta = parseMetadata(current.metadata);
 
                 const historyRecord: any = {
-                    pre_event_participant_id: preEventParticipantId,
+                    pre_event_participant_id: preEventEntryId,
                     pre_event_id: current.pre_event_id,
                     position: String(position),
                     runner: current.display_name ?? null,
-                    participant_status_id: current.participant_status_id ?? null,
+                    participant_status_id: (current as any).participant_status_id ?? null,
                     change_type: 'position',
                     extra_info: {
-                        ...mergedExtraInfo,
+                        ...mergedMeta,
                         previous_position: current.position != null ? String(current.position) : null,
                         new_position: String(position),
                         source_provider_id: sourceProviderId,
                     },
                 };
-                if (historyPolicy.includeJockeyColumn) historyRecord.jockey = current.jockey ?? null;
+                if (historyPolicy.includeJockeyColumn) historyRecord.jockey = (current as any).jockey ?? null;
 
                 await PreEventParticipantHistoryRepository.insert(historyRecord, trx);
             } catch (error) {
                 logger.error('Failed to write position history', error as Error, {
-                    preEventParticipantId,
+                    preEventParticipantId: preEventEntryId,
                     position,
                 });
             }
         }
     }
 
-    /**
-     * Get all active pre-event participants for a pre-event
-     * Active = participant_status_id = 1 (normal/running)
-     *
-     * @param preEventId - The pre-event ID
-     * @param trx - Transaction (required)
-     * @returns Array of active pre-event participants
-     */
     static async getAllActiveByPreEventId(
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<any[]> {
         const adapter = getSportAdapter();
-        const query = trx(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where('pre_event_id', preEventId);
+        const query = trx(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.pre_event_id', preEventId)
+            .select(
+                'pee.*',
+                'pee.id as id',
+                'p.name as display_name',
+                'p.short_name as ref_id'
+            );
 
-        // Only filter by status for sports that have participant status tracking
         if (adapter.hooks.participant.isActiveParticipantFilterEnabled()) {
-            query.where('participant_status_id', adapter.hooks.participant.getDefaultParticipantStatusId());
+            query.where('pee.entry_status', 'active');
         }
 
-        return await query;
+        const rows = await query;
+        return rows.map((row) => ({
+            ...row,
+            extra_info: typeof row.metadata === 'string' ? row.metadata : JSON.stringify(row.metadata ?? {}),
+        }));
     }
 
-    /**
-     * Get pre-event participant by ID
-     *
-     * @param preEventParticipantId - The pre-event participant ID
-     * @param trx - Optional transaction
-     * @returns Pre-event participant or null
-     */
     static async getById(
-        preEventParticipantId: number,
+        preEventEntryId: number,
         trx?: Knex.Transaction
     ): Promise<any | null> {
         const db = trx || this.db;
-        return await db(TABLES.PRE_EVENT_PARTICIPANTS)
-            .where('id', preEventParticipantId)
+        const row = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
+            .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
+            .where('pee.id', preEventEntryId)
+            .select(
+                'pee.*',
+                'pee.id as id',
+                'p.name as display_name',
+                'p.short_name as slug',
+                'p.short_name as ref_id'
+            )
             .first();
+
+        if (!row) return null;
+        return {
+            ...row,
+            extra_info: typeof row.metadata === 'string' ? row.metadata : JSON.stringify(row.metadata ?? {}),
+        };
     }
 }

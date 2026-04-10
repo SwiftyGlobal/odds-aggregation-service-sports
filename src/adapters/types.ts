@@ -29,6 +29,8 @@ export interface ParticipantMatchingCriteria {
 
 export interface SportAdapterTables {
     PROVIDER_SPORTS: string;
+    /** Raw provider identity rows (e.g. fs_provider_participants) */
+    PROVIDER_PARTICIPANTS: string;
     PROVIDER_COMPETITIONS: string;
     PROVIDER_EVENTS: string;
     PROVIDER_MARKETS: string;
@@ -40,6 +42,8 @@ export interface SportAdapterTables {
     PRE_COMPETITIONS: string;
     PRE_EVENTS: string;
     PRE_MARKETS: string;
+    /** Canonical participants (e.g. fs_pre_participants) */
+    PRE_PARTICIPANTS: string;
     PRE_EVENT_PARTICIPANTS: string;
     PRE_ODDS: string;
     PRE_MARKET_TYPES: string;
@@ -70,6 +74,10 @@ export interface SportAdapterPolling {
     tables: string[];
     /** Per-sport poll interval override in milliseconds (optional) */
     intervalMs?: number;
+    /**
+     * Tie-break column for ORDER BY (updated_at, ?). Defaults to `id`.
+     */
+    orderByIdColumn?: Record<string, string>;
 }
 
 export interface SportAdapterFields {

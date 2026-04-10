@@ -20,7 +20,10 @@ import { TABLES } from '../constants/tables.js';
 import { getSportAdapter } from '../adapters/index.js';
 
 export interface EventParticipantMatchResult {
+    /** fs_pre_event_entries.id */
     preEventParticipantId: number;
+    /** fs_pre_participants.id */
+    preParticipantId: number;
     isNew: boolean;
     confidence: number;
     matchReason: string;
@@ -86,10 +89,10 @@ export class EventParticipantMatchingService {
             }
 
             // Skip if already matched
-            if (providerEventParticipant.pre_event_participant_id) {
+            if (providerEventParticipant.pre_event_entry_id ?? providerEventParticipant.pre_event_participant_id) {
                 logger.debug('Event participant already matched', {
                     providerEventParticipantId,
-                    preEventParticipantId: providerEventParticipant.pre_event_participant_id
+                    preEventParticipantId: providerEventParticipant.pre_event_entry_id ?? providerEventParticipant.pre_event_participant_id
                 });
                 return null;
             }
@@ -115,10 +118,10 @@ export class EventParticipantMatchingService {
                 transaction
             );
 
-            // Update provider event participant with the pre_event_participant_id
             await EventParticipantRepository.updatePreEventParticipantId(
                 providerEventParticipantId,
                 result.preEventParticipantId,
+                result.preParticipantId,
                 transaction
             );
 
@@ -163,14 +166,30 @@ export class EventParticipantMatchingService {
         const participantName = extractParticipantName(rawName);
         const parentEvent = await trx(TABLES.PRE_EVENTS)
             .where('id', preEventId)
-            .select('event_ref_id')
+            .select('event_ref_id', 'pre_sport_id')
             .first();
+
+        const preSportId = parentEvent?.pre_sport_id;
+        if (preSportId == null) {
+            throw new Error(`pre_sport_id missing for pre_event_id=${preEventId}`);
+        }
 
         const canonicalRefId = (parentEvent?.event_ref_id && participantName)
             ? buildParticipantRefId(parentEvent.event_ref_id, participantName)
             : providerEventParticipant.participant_ref_id;
 
-        // Get existing pre-event-participant if it exists
+        const displayName =
+            providerEventParticipant.display_name ||
+            providerEventParticipant.participant_ref_id ||
+            canonicalRefId;
+
+        const preParticipantId = await PreEventParticipantRepository.ensurePreParticipant(
+            preSportId,
+            canonicalRefId,
+            displayName,
+            trx
+        );
+
         const existingPreEventParticipant = await PreEventParticipantRepository.getPreEventParticipant(
             preEventId,
             canonicalRefId,
@@ -227,12 +246,21 @@ export class EventParticipantMatchingService {
             extraInfo.provider_mappings.push(newMapping);
         }
 
-        // Aggregate all silk_path and silk_url from all providers for this pre-event-participant
-        const allProviderParticipants = await EventParticipantRepository.getProviderEventParticipantsForPreEventParticipant(
-            providerEventParticipant.participant_ref_id,
-            preEventId,
-            trx
-        );
+        const pepId = providerEventParticipant.id;
+        const allProviderParticipants =
+            existingPreEventParticipant?.id != null
+                ? await EventParticipantRepository.getProviderEventParticipantsForPreEventParticipant(
+                    existingPreEventParticipant.id,
+                    preEventId,
+                    trx
+                )
+                : [
+                    {
+                        id: pepId,
+                        provider_id: providerEventParticipant.provider_id,
+                        extra_info: providerEventParticipant.extra_info ?? providerEventParticipant.metadata ?? providerEventParticipant.pp_metadata,
+                    },
+                ];
 
         const silkInfo: Array<{ provider_id: number; silk_path?: string; silk_url?: string }> = [];
         for (const providerParticipant of allProviderParticipants) {
@@ -272,6 +300,7 @@ export class EventParticipantMatchingService {
         const adapter = getSportAdapter();
         const participantData: any = {
             pre_event_id: preEventId,
+            pre_participant_id: preParticipantId,
             provider_participant_ref_id: providerEventParticipant.participant_ref_id,
             display_name: providerEventParticipant.display_name,
             slug: providerEventParticipant.participant_ref_id,
@@ -304,7 +333,8 @@ export class EventParticipantMatchingService {
 
         return {
             preEventParticipantId,
-            isNew: true, // We use upsert, so we don't track this precisely
+            preParticipantId,
+            isNew: true,
             confidence: 1.0,
             matchReason: 'direct_match_by_ref_id'
         };

@@ -5,6 +5,14 @@
 
 import { DatabaseService } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
+import { getSportAdapter } from '../adapters/index.js';
+
+/** Primary key value from a polled row (table-specific tie-break column). */
+export function getPolledRowPrimaryKey(table: string, row: Record<string, unknown>): number {
+    const col = getSportAdapter().polling.orderByIdColumn?.[table] ?? 'id';
+    const v = row[col] ?? row.id;
+    return Number(v);
+}
 
 export class PollingRepository {
     /**
@@ -18,11 +26,14 @@ export class PollingRepository {
     ): Promise<any[]> {
         const db = DatabaseService.getInstance();
 
+        const idColumn =
+            getSportAdapter().polling.orderByIdColumn?.[table] ?? 'id';
+
         const rows = await db(table)
             .where('updated_at', '>', since)
             .orderBy([
                 { column: 'updated_at', order: 'asc' },
-                { column: 'id', order: 'asc' }
+                { column: idColumn, order: 'asc' }
             ])
             .limit(limit);
 
