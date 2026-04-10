@@ -1,0 +1,12 @@
+.env
+.DS_Store
+.cursor
+
+/node_modules
+/usefulInfo
+/docs
+/dist
+
+package-lock.json
+
+README.md

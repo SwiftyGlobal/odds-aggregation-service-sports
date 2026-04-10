@@ -1,0 +1,161 @@
+import type { SportAdapter } from '../types.js';
+
+function healthCheckEnabled(key: string): boolean {
+    return process.env[key] !== 'false';
+}
+
+export const golfAdapter: SportAdapter = {
+    sport: {
+        id: 2,
+        code: 'GOLF',
+        name: 'Golf',
+    },
+    tables: {
+        PROVIDER_SPORTS: 'fs_provider_sports',
+        PROVIDER_COMPETITIONS: 'fs_provider_event_groups',
+        PROVIDER_EVENTS: 'fs_provider_events',
+        PROVIDER_MARKETS: 'fs_provider_markets',
+        PROVIDER_EVENT_PARTICIPANTS: 'fs_provider_event_entries',
+        PROVIDER_ODDS: 'fs_provider_selections',
+        PROVIDER_ODDS_HISTORY: 'fs_provider_selection_price_history',
+        PROVIDER_MARKET_TYPES: 'fs_provider_market_types',
+        PRE_COMPETITIONS: 'fs_pre_event_groups',
+        PRE_EVENTS: 'fs_pre_events',
+        PRE_MARKETS: 'fs_pre_markets',
+        PRE_EVENT_PARTICIPANTS: 'fs_pre_event_entries',
+        PRE_ODDS: 'fs_pre_selections',
+        PRE_MARKET_TYPES: 'fs_ref_market_templates',
+        PRE_EVENTS_HISTORY: 'fs_pre_event_periods',
+        PRE_ODDS_HISTORY: 'fs_pre_selection_price_history',
+        PRE_EVENT_PARTICIPANTS_HISTORY: 'fs_pre_event_entries',
+        OUTBOX_EVENTS: 'fs_outbox_events',
+        FAILED_EVENTS: 'fs_cdc_failed_events',
+    },
+    polling: {
+        tables: [
+            'fs_provider_event_groups',
+            'fs_provider_events',
+            'fs_provider_markets',
+            'fs_provider_event_entries',
+            'fs_provider_selections',
+        ],
+    },
+    providers: [
+        { id: 1, name: 'unibet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_UNIBET_ENABLED') },
+        { id: 4, name: 'netbet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_NETBET_ENABLED') },
+    ],
+    matching: {
+        competition: {
+            venueSimilarityThreshold: 0.85,
+            requireCountryMatch: false,
+            requireDayMatch: true,
+            matchField: 'name',
+            conflictColumns: ['pre_sport_id', 'name', 'start_date'],
+        },
+        event: {
+            nameSimilarity: 0.8,
+            timeWindowMinutes: 3,
+            competitionMatch: true,
+            participantOverlap: 0.6,
+        },
+        participant: {
+            nameSimilarity: 0.85,
+            drawNumberMatch: false,
+            displayNameMatch: true,
+            slugMatch: true,
+        },
+    },
+    eventStatus: {
+        PRE_EVENT: 1,
+        LIVE: 2,
+        FINISHED: 3,
+        /** Shared services still reference horse-racing names; keep aliases aligned with numeric flow */
+        PRE_RACE: 1,
+        OFF_TIME: 2,
+    },
+    oddsStatus: {
+        statuses: {
+            PRE_MATCH: 1,
+            IN_PLAY: 2,
+        },
+        boardingPriceThresholdMinutes: 0,
+        validStatusesForAggregation: [1, 2],
+        getStatus(name: string): number {
+            const val = this.statuses[name];
+            if (val === undefined) throw new Error(`Unknown odds status: ${name}`);
+            return val;
+        },
+    },
+    marketTypes: {
+        types: {
+            OUTRIGHT_WINNER: 'Outright Winner',
+            TOP_5: 'Top 5',
+            TOP_10: 'Top 10',
+            TOP_20: 'Top 20',
+            THREE_BALL: 'Three Ball',
+        },
+    },
+    fields: {
+        providerOddsMarketField: 'provider_market_id',
+        marketTypeResolution: 'direct_fk',
+        hasDrawNumber: false,
+        hasJockey: false,
+        hasSP: false,
+        hasHandicap: false,
+        hasDistance: false,
+        hasSuspended: true,
+        hasOutright: true,
+        hasLiveStatus: true,
+        hasParentEvent: true,
+        hasPeriodNumber: true,
+        hasParticipantStatus: false,
+    },
+    adapterKey: 'golf',
+    hooks: {
+        participant: {
+            getProviderParticipantSelectColumns(baseColumns: string[]): string[] {
+                return baseColumns;
+            },
+            applyPreEventParticipantFields({ data, insertData, mergeData }) {
+                void data;
+                void insertData;
+                void mergeData;
+            },
+            getHistoryPolicy() {
+                return {
+                    trackHistory: false,
+                    includeJockeyColumn: false,
+                    includeRunnerColumn: false,
+                };
+            },
+            isActiveParticipantFilterEnabled() {
+                return false;
+            },
+            getDefaultParticipantStatusId() {
+                return 1;
+            },
+        },
+        event: {
+            applyPreEventCreateFields({ data, insertData, mergeData }) {
+                void data;
+                void insertData;
+                void mergeData;
+            },
+            applyPreEventEnrichmentFields({ existing, providerEvent, updates }) {
+                void existing;
+                void providerEvent;
+                void updates;
+            },
+        },
+        odds: {
+            supportsStartingPrice() {
+                return false;
+            },
+        },
+        metadata: {
+            getSportSlug() {
+                return 'golf';
+            },
+        },
+    },
+};

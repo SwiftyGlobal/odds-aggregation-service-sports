@@ -1,0 +1,67 @@
+name: Build, Push, and Deploy
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: ecr-deploy-${{ github.ref }}-odds-aggregation-service-sports
+  cancel-in-progress: true
+
+env:
+  SERVICE_NAME: odds-aggregation-service-sports
+  AWS_REGION: eu-west-1
+  ECS_CLUSTER: dev-swiftyfeeds
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: swiftyfeeds/${{ env.SERVICE_NAME }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Register task definition revision
+        id: task-def
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          IMAGE="$ECR_REGISTRY/swiftyfeeds/${SERVICE_NAME}:${IMAGE_TAG}"
+          aws ecs describe-task-definition --task-definition "${SERVICE_NAME}" --query 'taskDefinition' > task-def.json
+          jq --arg IMAGE "$IMAGE" --arg SERVICE "$SERVICE_NAME" '
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+            .containerDefinitions = (.containerDefinitions | map(if .name == $SERVICE then .image = $IMAGE else . end))
+          ' task-def.json > new-task-def.json
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json --query 'taskDefinition.taskDefinitionArn' --output text)
+          echo "arn=${NEW_TASK_DEF_ARN}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to ECS
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "${ECS_CLUSTER}" --service "${SERVICE_NAME}" --task-definition "${{ steps.task-def.outputs.arn }}" --force-new-deployment

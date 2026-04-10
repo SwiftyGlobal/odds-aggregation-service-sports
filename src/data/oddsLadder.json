@@ -1,0 +1,1447 @@
+[
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/100"
+			},
+			{
+				"key": "usa",
+				"value": "-10000"
+			},
+			{
+				"key": "dec",
+				"value": "1.01"
+			}
+		],
+		"key": 1.01
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/50"
+			},
+			{
+				"key": "usa",
+				"value": "-5000"
+			},
+			{
+				"key": "dec",
+				"value": "1.02"
+			}
+		],
+		"key": 1.02
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/40"
+			},
+			{
+				"key": "usa",
+				"value": "-4000"
+			},
+			{
+				"key": "dec",
+				"value": "1.03"
+			}
+		],
+		"key": 1.025
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/33"
+			},
+			{
+				"key": "usa",
+				"value": "-3333.33"
+			},
+			{
+				"key": "dec",
+				"value": "1.03"
+			}
+		],
+		"key": 1.0303030303
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/25"
+			},
+			{
+				"key": "usa",
+				"value": "-2500"
+			},
+			{
+				"key": "dec",
+				"value": "1.04"
+			}
+		],
+		"key": 1.04
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/20"
+			},
+			{
+				"key": "usa",
+				"value": "-2000"
+			},
+			{
+				"key": "dec",
+				"value": "1.05"
+			}
+		],
+		"key": 1.05
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/16"
+			},
+			{
+				"key": "usa",
+				"value": "-1587.3"
+			},
+			{
+				"key": "dec",
+				"value": "1.06"
+			}
+		],
+		"key": 1.0625
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/14"
+			},
+			{
+				"key": "usa",
+				"value": "-1408.45"
+			},
+			{
+				"key": "dec",
+				"value": "1.07"
+			}
+		],
+		"key": 1.0714285714
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/12"
+			},
+			{
+				"key": "usa",
+				"value": "-1204.82"
+			},
+			{
+				"key": "dec",
+				"value": "1.08"
+			}
+		],
+		"key": 1.0833333333
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/10"
+			},
+			{
+				"key": "usa",
+				"value": "-1000"
+			},
+			{
+				"key": "dec",
+				"value": "1.10"
+			}
+		],
+		"key": 1.1
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/9"
+			},
+			{
+				"key": "usa",
+				"value": "-900.9"
+			},
+			{
+				"key": "dec",
+				"value": "1.11"
+			}
+		],
+		"key": 1.1111111111
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/8"
+			},
+			{
+				"key": "usa",
+				"value": "-800"
+			},
+			{
+				"key": "dec",
+				"value": "1.13"
+			}
+		],
+		"key": 1.125
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/7"
+			},
+			{
+				"key": "usa",
+				"value": "-699.3"
+			},
+			{
+				"key": "dec",
+				"value": "1.14"
+			}
+		],
+		"key": 1.1428571429
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/6"
+			},
+			{
+				"key": "usa",
+				"value": "-598.8"
+			},
+			{
+				"key": "dec",
+				"value": "1.17"
+			}
+		],
+		"key": 1.1666666667
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "2/11"
+			},
+			{
+				"key": "usa",
+				"value": "-549.45"
+			},
+			{
+				"key": "dec",
+				"value": "1.18"
+			}
+		],
+		"key": 1.1818181818
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/5"
+			},
+			{
+				"key": "usa",
+				"value": "-500"
+			},
+			{
+				"key": "dec",
+				"value": "1.20"
+			}
+		],
+		"key": 1.2
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "2/9"
+			},
+			{
+				"key": "usa",
+				"value": "-450.45"
+			},
+			{
+				"key": "dec",
+				"value": "1.22"
+			}
+		],
+		"key": 1.2222222222
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/4"
+			},
+			{
+				"key": "usa",
+				"value": "-400"
+			},
+			{
+				"key": "dec",
+				"value": "1.25"
+			}
+		],
+		"key": 1.25
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "2/7"
+			},
+			{
+				"key": "usa",
+				"value": "-349.65"
+			},
+			{
+				"key": "dec",
+				"value": "1.29"
+			}
+		],
+		"key": 1.2857142857
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "3/10"
+			},
+			{
+				"key": "usa",
+				"value": "-333.33"
+			},
+			{
+				"key": "dec",
+				"value": "1.30"
+			}
+		],
+		"key": 1.3
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/3"
+			},
+			{
+				"key": "usa",
+				"value": "-300.3"
+			},
+			{
+				"key": "dec",
+				"value": "1.33"
+			}
+		],
+		"key": 1.3333333333
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/11"
+			},
+			{
+				"key": "usa",
+				"value": "-274.73"
+			},
+			{
+				"key": "dec",
+				"value": "1.36"
+			}
+		],
+		"key": 1.3636363636
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "2/5"
+			},
+			{
+				"key": "usa",
+				"value": "-250"
+			},
+			{
+				"key": "dec",
+				"value": "1.40"
+			}
+		],
+		"key": 1.4
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/9"
+			},
+			{
+				"key": "usa",
+				"value": "-225.23"
+			},
+			{
+				"key": "dec",
+				"value": "1.44"
+			}
+		],
+		"key": 1.4444444444
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "40/85"
+			},
+			{
+				"key": "usa",
+				"value": "-212.77"
+			},
+			{
+				"key": "dec",
+				"value": "1.47"
+			}
+		],
+		"key": 1.4705882353
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1/2"
+			},
+			{
+				"key": "usa",
+				"value": "-200"
+			},
+			{
+				"key": "dec",
+				"value": "1.50"
+			}
+		],
+		"key": 1.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "8/15"
+			},
+			{
+				"key": "usa",
+				"value": "-187.62"
+			},
+			{
+				"key": "dec",
+				"value": "1.53"
+			}
+		],
+		"key": 1.5333333333
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/7"
+			},
+			{
+				"key": "usa",
+				"value": "-175.13"
+			},
+			{
+				"key": "dec",
+				"value": "1.57"
+			}
+		],
+		"key": 1.5714285714
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "8/13"
+			},
+			{
+				"key": "usa",
+				"value": "-162.6"
+			},
+			{
+				"key": "dec",
+				"value": "1.62"
+			}
+		],
+		"key": 1.6153846154
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/6"
+			},
+			{
+				"key": "usa",
+				"value": "-149.93"
+			},
+			{
+				"key": "dec",
+				"value": "1.67"
+			}
+		],
+		"key": 1.6666666667
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "8/11"
+			},
+			{
+				"key": "usa",
+				"value": "-137.55"
+			},
+			{
+				"key": "dec",
+				"value": "1.73"
+			}
+		],
+		"key": 1.7272727273
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/5"
+			},
+			{
+				"key": "usa",
+				"value": "-125"
+			},
+			{
+				"key": "dec",
+				"value": "1.80"
+			}
+		],
+		"key": 1.8
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "5/6"
+			},
+			{
+				"key": "usa",
+				"value": "-120.05"
+			},
+			{
+				"key": "dec",
+				"value": "1.83"
+			}
+		],
+		"key": 1.8333333333
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "10/11"
+			},
+			{
+				"key": "usa",
+				"value": "-110.01"
+			},
+			{
+				"key": "dec",
+				"value": "1.91"
+			}
+		],
+		"key": 1.9090909091
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "Evs"
+			},
+			{
+				"key": "usa",
+				"value": "100"
+			},
+			{
+				"key": "dec",
+				"value": "2.00"
+			}
+		],
+		"key": 2
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "11/10"
+			},
+			{
+				"key": "usa",
+				"value": "110"
+			},
+			{
+				"key": "dec",
+				"value": "2.10"
+			}
+		],
+		"key": 2.1
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "6/5"
+			},
+			{
+				"key": "usa",
+				"value": "120"
+			},
+			{
+				"key": "dec",
+				"value": "2.20"
+			}
+		],
+		"key": 2.2
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "5/4"
+			},
+			{
+				"key": "usa",
+				"value": "125"
+			},
+			{
+				"key": "dec",
+				"value": "2.25"
+			}
+		],
+		"key": 2.25
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "11/8"
+			},
+			{
+				"key": "usa",
+				"value": "137.5"
+			},
+			{
+				"key": "dec",
+				"value": "2.38"
+			}
+		],
+		"key": 2.375
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "6/4"
+			},
+			{
+				"key": "usa",
+				"value": "150"
+			},
+			{
+				"key": "dec",
+				"value": "2.50"
+			}
+		],
+		"key": 2.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "13/8"
+			},
+			{
+				"key": "usa",
+				"value": "162.5"
+			},
+			{
+				"key": "dec",
+				"value": "2.63"
+			}
+		],
+		"key": 2.625
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "7/4"
+			},
+			{
+				"key": "usa",
+				"value": "175"
+			},
+			{
+				"key": "dec",
+				"value": "2.75"
+			}
+		],
+		"key": 2.75
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "15/8"
+			},
+			{
+				"key": "usa",
+				"value": "187.5"
+			},
+			{
+				"key": "dec",
+				"value": "2.88"
+			}
+		],
+		"key": 2.875
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "2/1"
+			},
+			{
+				"key": "usa",
+				"value": "200"
+			},
+			{
+				"key": "dec",
+				"value": "3.00"
+			}
+		],
+		"key": 3
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "85/40"
+			},
+			{
+				"key": "usa",
+				"value": "212.5"
+			},
+			{
+				"key": "dec",
+				"value": "3.13"
+			}
+		],
+		"key": 3.125
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "9/4"
+			},
+			{
+				"key": "usa",
+				"value": "225"
+			},
+			{
+				"key": "dec",
+				"value": "3.25"
+			}
+		],
+		"key": 3.25
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "5/2"
+			},
+			{
+				"key": "usa",
+				"value": "250"
+			},
+			{
+				"key": "dec",
+				"value": "3.50"
+			}
+		],
+		"key": 3.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "11/4"
+			},
+			{
+				"key": "usa",
+				"value": "275"
+			},
+			{
+				"key": "dec",
+				"value": "3.75"
+			}
+		],
+		"key": 3.75
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "3/1"
+			},
+			{
+				"key": "usa",
+				"value": "300"
+			},
+			{
+				"key": "dec",
+				"value": "4.00"
+			}
+		],
+		"key": 4
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "10/3"
+			},
+			{
+				"key": "usa",
+				"value": "333.3"
+			},
+			{
+				"key": "dec",
+				"value": "4.33"
+			}
+		],
+		"key": 4.3333333333
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "7/2"
+			},
+			{
+				"key": "usa",
+				"value": "350"
+			},
+			{
+				"key": "dec",
+				"value": "4.50"
+			}
+		],
+		"key": 4.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "4/1"
+			},
+			{
+				"key": "usa",
+				"value": "400"
+			},
+			{
+				"key": "dec",
+				"value": "5.00"
+			}
+		],
+		"key": 5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "9/2"
+			},
+			{
+				"key": "usa",
+				"value": "450"
+			},
+			{
+				"key": "dec",
+				"value": "5.50"
+			}
+		],
+		"key": 5.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "5/1"
+			},
+			{
+				"key": "usa",
+				"value": "500"
+			},
+			{
+				"key": "dec",
+				"value": "6.00"
+			}
+		],
+		"key": 6
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "11/2"
+			},
+			{
+				"key": "usa",
+				"value": "550"
+			},
+			{
+				"key": "dec",
+				"value": "6.50"
+			}
+		],
+		"key": 6.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "6/1"
+			},
+			{
+				"key": "usa",
+				"value": "600"
+			},
+			{
+				"key": "dec",
+				"value": "7.00"
+			}
+		],
+		"key": 7
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "13/2"
+			},
+			{
+				"key": "usa",
+				"value": "650"
+			},
+			{
+				"key": "dec",
+				"value": "7.50"
+			}
+		],
+		"key": 7.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "7/1"
+			},
+			{
+				"key": "usa",
+				"value": "700"
+			},
+			{
+				"key": "dec",
+				"value": "8.00"
+			}
+		],
+		"key": 8
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "15/2"
+			},
+			{
+				"key": "usa",
+				"value": "750"
+			},
+			{
+				"key": "dec",
+				"value": "8.50"
+			}
+		],
+		"key": 8.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "8/1"
+			},
+			{
+				"key": "usa",
+				"value": "800"
+			},
+			{
+				"key": "dec",
+				"value": "9.00"
+			}
+		],
+		"key": 9
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "17/2"
+			},
+			{
+				"key": "usa",
+				"value": "850"
+			},
+			{
+				"key": "dec",
+				"value": "9.50"
+			}
+		],
+		"key": 9.5
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "9/1"
+			},
+			{
+				"key": "usa",
+				"value": "900"
+			},
+			{
+				"key": "dec",
+				"value": "10.00"
+			}
+		],
+		"key": 10
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "10/1"
+			},
+			{
+				"key": "usa",
+				"value": "1000"
+			},
+			{
+				"key": "dec",
+				"value": "11.00"
+			}
+		],
+		"key": 11
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "11/1"
+			},
+			{
+				"key": "usa",
+				"value": "1100"
+			},
+			{
+				"key": "dec",
+				"value": "12.00"
+			}
+		],
+		"key": 12
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "12/1"
+			},
+			{
+				"key": "usa",
+				"value": "1200"
+			},
+			{
+				"key": "dec",
+				"value": "13.00"
+			}
+		],
+		"key": 13
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "14/1"
+			},
+			{
+				"key": "usa",
+				"value": "1400"
+			},
+			{
+				"key": "dec",
+				"value": "15.00"
+			}
+		],
+		"key": 15
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "16/1"
+			},
+			{
+				"key": "usa",
+				"value": "1600"
+			},
+			{
+				"key": "dec",
+				"value": "17.00"
+			}
+		],
+		"key": 17
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "18/1"
+			},
+			{
+				"key": "usa",
+				"value": "1800"
+			},
+			{
+				"key": "dec",
+				"value": "19.00"
+			}
+		],
+		"key": 19
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "20/1"
+			},
+			{
+				"key": "usa",
+				"value": "2000"
+			},
+			{
+				"key": "dec",
+				"value": "21.00"
+			}
+		],
+		"key": 21
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "22/1"
+			},
+			{
+				"key": "usa",
+				"value": "2200"
+			},
+			{
+				"key": "dec",
+				"value": "23.00"
+			}
+		],
+		"key": 23
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "25/1"
+			},
+			{
+				"key": "usa",
+				"value": "2500"
+			},
+			{
+				"key": "dec",
+				"value": "26.00"
+			}
+		],
+		"key": 26
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "28/1"
+			},
+			{
+				"key": "usa",
+				"value": "2800"
+			},
+			{
+				"key": "dec",
+				"value": "29.00"
+			}
+		],
+		"key": 29
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "33/1"
+			},
+			{
+				"key": "usa",
+				"value": "3300"
+			},
+			{
+				"key": "dec",
+				"value": "34.00"
+			}
+		],
+		"key": 34
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "40/1"
+			},
+			{
+				"key": "usa",
+				"value": "4000"
+			},
+			{
+				"key": "dec",
+				"value": "41.00"
+			}
+		],
+		"key": 41
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "50/1"
+			},
+			{
+				"key": "usa",
+				"value": "5000"
+			},
+			{
+				"key": "dec",
+				"value": "51.00"
+			}
+		],
+		"key": 51
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "66/1"
+			},
+			{
+				"key": "usa",
+				"value": "6600"
+			},
+			{
+				"key": "dec",
+				"value": "67.00"
+			}
+		],
+		"key": 67
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "80/1"
+			},
+			{
+				"key": "usa",
+				"value": "8000"
+			},
+			{
+				"key": "dec",
+				"value": "81.00"
+			}
+		],
+		"key": 81
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "100/1"
+			},
+			{
+				"key": "usa",
+				"value": "10000"
+			},
+			{
+				"key": "dec",
+				"value": "101.00"
+			}
+		],
+		"key": 101
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "125/1"
+			},
+			{
+				"key": "usa",
+				"value": "12500"
+			},
+			{
+				"key": "dec",
+				"value": "126.00"
+			}
+		],
+		"key": 126
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "150/1"
+			},
+			{
+				"key": "usa",
+				"value": "15000"
+			},
+			{
+				"key": "dec",
+				"value": "151.00"
+			}
+		],
+		"key": 151
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "200/1"
+			},
+			{
+				"key": "usa",
+				"value": "20000"
+			},
+			{
+				"key": "dec",
+				"value": "201.00"
+			}
+		],
+		"key": 201
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "250/1"
+			},
+			{
+				"key": "usa",
+				"value": "25000"
+			},
+			{
+				"key": "dec",
+				"value": "251.00"
+			}
+		],
+		"key": 251
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "300/1"
+			},
+			{
+				"key": "usa",
+				"value": "30000"
+			},
+			{
+				"key": "dec",
+				"value": "301.00"
+			}
+		],
+		"key": 301
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "500/1"
+			},
+			{
+				"key": "usa",
+				"value": "50000"
+			},
+			{
+				"key": "dec",
+				"value": "501.00"
+			}
+		],
+		"key": 501
+	},
+	{
+		"display": [
+			{
+				"key": "fra",
+				"value": "1000/1"
+			},
+			{
+				"key": "usa",
+				"value": "100000"
+			},
+			{
+				"key": "dec",
+				"value": "1001.00"
+			}
+		],
+		"key": 1001
+	}
+]
