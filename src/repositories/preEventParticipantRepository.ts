@@ -25,25 +25,25 @@ function normalize(val: string | null | undefined): string | null {
 export class PreEventParticipantRepository {
     private static db = KnexClient.getInstance();
 
-    static readonly SHORT_NAME_MAX_LEN = 100;
+    static readonly PARTICIPANT_REF_ID_MAX_LEN = 100;
 
-    static truncateShortName(s: string): string {
-        return s.length <= this.SHORT_NAME_MAX_LEN ? s : s.slice(0, this.SHORT_NAME_MAX_LEN);
+    static truncateParticipantRefId(s: string): string {
+        return s.length <= this.PARTICIPANT_REF_ID_MAX_LEN ? s : s.slice(0, this.PARTICIPANT_REF_ID_MAX_LEN);
     }
 
     /**
-     * Find or create fs_pre_participants row keyed by (pre_sport_id, short_name).
+     * Find or create fs_pre_participants row keyed by (pre_sport_id, participant_ref_id).
      */
     static async ensurePreParticipant(
         preSportId: number,
-        shortNameRaw: string,
+        participantRefIdRaw: string,
         name: string,
         trx?: Knex.Transaction
     ): Promise<number> {
         const db = trx || this.db;
-        const short_name = this.truncateShortName(shortNameRaw);
+        const participant_ref_id = this.truncateParticipantRefId(participantRefIdRaw);
         const row = await db(TABLES.PRE_PARTICIPANTS)
-            .where({ pre_sport_id: preSportId, short_name })
+            .where({ pre_sport_id: preSportId, participant_ref_id })
             .first();
 
         if (row) {
@@ -59,7 +59,7 @@ export class PreEventParticipantRepository {
             .insert({
                 pre_sport_id: preSportId,
                 name,
-                short_name,
+                participant_ref_id,
                 participant_type: 'individual',
                 metadata: db.raw(`'{}'::jsonb`),
                 created_at: new Date(),
@@ -284,25 +284,25 @@ export class PreEventParticipantRepository {
     }
 
     /**
-     * Get canonical entry by pre_event_id and stable participant short_name (fs_pre_participants.short_name)
+     * Get canonical entry by pre_event_id and fs_pre_participants.participant_ref_id
      */
     static async getPreEventParticipant(
         preEventId: number,
-        participantShortName: string,
+        participantRefId: string,
         trx?: Knex.Transaction
     ): Promise<any | null> {
         const db = trx || this.db;
-        const sn = this.truncateShortName(participantShortName);
+        const ref = this.truncateParticipantRefId(participantRefId);
         const row = await db(`${TABLES.PRE_EVENT_PARTICIPANTS} as pee`)
             .join(`${TABLES.PRE_PARTICIPANTS} as p`, 'pee.pre_participant_id', 'p.id')
             .where('pee.pre_event_id', preEventId)
-            .where('p.short_name', sn)
+            .where('p.participant_ref_id', ref)
             .select(
                 'pee.*',
                 'pee.id as id',
                 'p.name as display_name',
-                'p.short_name as slug',
-                'p.short_name as ref_id'
+                'p.participant_ref_id as slug',
+                'p.participant_ref_id as ref_id'
             )
             .first();
 
@@ -322,8 +322,8 @@ export class PreEventParticipantRepository {
                 'pee.*',
                 'pee.id as id',
                 'p.name as display_name',
-                'p.short_name as slug',
-                'p.short_name as ref_id',
+                'p.participant_ref_id as slug',
+                'p.participant_ref_id as ref_id',
                 'p.id as pre_participant_id'
             );
 
@@ -427,7 +427,7 @@ export class PreEventParticipantRepository {
                 'pee.*',
                 'pee.id as id',
                 'p.name as display_name',
-                'p.short_name as ref_id'
+                'p.participant_ref_id as ref_id'
             );
 
         if (adapter.hooks.participant.isActiveParticipantFilterEnabled()) {
@@ -453,8 +453,8 @@ export class PreEventParticipantRepository {
                 'pee.*',
                 'pee.id as id',
                 'p.name as display_name',
-                'p.short_name as slug',
-                'p.short_name as ref_id'
+                'p.participant_ref_id as slug',
+                'p.participant_ref_id as ref_id'
             )
             .first();
 

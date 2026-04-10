@@ -26,8 +26,8 @@ function mapProviderEventEntryRow(row: Record<string, any> | undefined): any | n
         ...row,
         id: row.id,
         provider_entry_id: row.id,
-        participant_ref_id: row.participant_ref_id ?? row.short_name ?? row.entry_ref_id,
-        slug: row.slug ?? row.short_name,
+        participant_ref_id: row.pp_participant_ref ?? row.participant_ref_id ?? row.entry_ref_id,
+        slug: row.slug ?? row.pp_participant_ref ?? row.participant_ref_id,
         display_name:
             row.display_name ??
             row.pp_name ??
@@ -54,7 +54,7 @@ export class EventParticipantRepository {
             .select(
                 'pep.*',
                 'pp.name as pp_name',
-                'pp.short_name',
+                'pp.participant_ref_id as pp_participant_ref',
                 'pp.metadata as pp_metadata'
             )
             .first();
@@ -64,7 +64,6 @@ export class EventParticipantRepository {
         const mapped = mapProviderEventEntryRow({
             ...row,
             display_name: row.pp_name,
-            participant_ref_id: row.short_name ?? row.entry_ref_id,
         });
         return mapped;
     }
@@ -224,7 +223,7 @@ export class EventParticipantRepository {
                 'pe.provider_id',
                 'pe.pre_event_id',
                 'pp.name as pp_name',
-                'pp.short_name',
+                'pp.participant_ref_id as pp_participant_ref',
                 'pp.metadata as pp_metadata'
             )
             .first();
@@ -233,7 +232,6 @@ export class EventParticipantRepository {
         return mapProviderEventEntryRow({
             ...result,
             display_name: result.pp_name,
-            participant_ref_id: result.short_name ?? result.entry_ref_id,
         });
     }
 }
