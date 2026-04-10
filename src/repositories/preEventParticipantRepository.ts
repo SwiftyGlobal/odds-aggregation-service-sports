@@ -48,6 +48,16 @@ export class PreEventParticipantRepository {
             jockey?: string;
             participant_status_id?: number;
             position?: number;
+            /** Canonical entry status — one of ENTRY_STATUS_VALUES. Omit to keep existing / use DB default. */
+            entry_status?: string;
+            /** Canonical entry role — one of ENTRY_ROLE_VALUES. Omit to keep existing / use DB default. */
+            role?: string;
+            /** Tournament seed (e.g. tennis seeding). */
+            seed?: number | null;
+            /** Starting draw position (e.g. golf tee-time order). */
+            draw_position?: number | null;
+            /** Final finishing position after settlement. */
+            finishing_position?: number | null;
             extra_info: string; // JSON string
         },
         trx?: Knex.Transaction
@@ -91,7 +101,6 @@ export class PreEventParticipantRepository {
             pre_event_id: data.pre_event_id,
             entry_ref_id: refId,
             display_name: data.display_name,
-            role: null,
             position: data.position,
             extra_info: data.extra_info,
             created_at: new Date(),
@@ -100,12 +109,37 @@ export class PreEventParticipantRepository {
 
         const mergeData: Record<string, any> = {
             display_name: data.display_name,
-            role: null,
             position: data.position,
             // Merge JSONB: existing || new (new fields override existing, but keep all unique fields)
             extra_info: db.raw(`COALESCE(${TABLES.PRE_EVENT_PARTICIPANTS}.extra_info, '{}'::jsonb) || ?::jsonb`, [data.extra_info]),
             updated_at: new Date()
         };
+
+        // Propagate canonical-entry fields from the provider layer.
+        // Only set when the caller supplied a value — leaving the column untouched
+        // on merge preserves whatever the previous provider wrote, and lets the
+        // DB default ('active' / 'participant') apply on insert.
+        if (data.role !== undefined) {
+            insertData.role = data.role;
+            mergeData.role = data.role;
+        }
+        if (data.entry_status !== undefined) {
+            insertData.entry_status = data.entry_status;
+            mergeData.entry_status = data.entry_status;
+        }
+        if (data.seed !== undefined) {
+            insertData.seed = data.seed;
+            mergeData.seed = data.seed;
+        }
+        if (data.draw_position !== undefined) {
+            insertData.draw_position = data.draw_position;
+            mergeData.draw_position = data.draw_position;
+        }
+        if (data.finishing_position !== undefined) {
+            insertData.finishing_position = data.finishing_position;
+            mergeData.finishing_position = data.finishing_position;
+        }
+
         adapter.hooks.participant.applyPreEventParticipantFields({
             data,
             insertData,

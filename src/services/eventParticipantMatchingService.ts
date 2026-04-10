@@ -276,7 +276,16 @@ export class EventParticipantMatchingService {
             display_name: providerEventParticipant.display_name,
             slug: providerEventParticipant.participant_ref_id,
             position: providerEventParticipant.position,
-            extra_info: JSON.stringify(extraInfo)
+            extra_info: JSON.stringify(extraInfo),
+            // Propagate canonical-entry fields from provider layer -> pre layer.
+            // Undefined values are skipped by the repository (existing canonical
+            // row keeps whatever the previous provider wrote). Last provider to
+            // touch the row wins for status / role / seed / positions.
+            entry_status: providerEventParticipant.entry_status,
+            role: providerEventParticipant.role,
+            seed: providerEventParticipant.seed,
+            draw_position: providerEventParticipant.draw_position,
+            finishing_position: providerEventParticipant.finishing_position,
         };
         adapter.hooks.participant.applyPreEventParticipantFields({
             data: {
