@@ -7,4 +7,4 @@ export const OUTBOX_EVENT_TYPES = {
     PRE_EVENT_FULL: 'pre_event.full'
 } as const;
 
-export const OUTBOX_SCHEMA_VERSION = 1 as const;
+export const OUTBOX_SCHEMA_VERSION = 2 as const;

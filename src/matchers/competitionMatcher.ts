@@ -244,7 +244,13 @@ export class CompetitionMatcher {
             competition_name: providerCompetition.competition_name || providerCompetition.name,
             venue_name: providerCompetition.venue_name || '',
             country_code: providerCompetition.country_code ?? null,
-            day: providerCompetition.day || providerCompetition.start_date || new Date().toISOString().split('T')[0],
+            day:
+                providerCompetition.day ||
+                (providerCompetition.start_time
+                    ? new Date(providerCompetition.start_time).toISOString().slice(0, 10)
+                    : null) ||
+                providerCompetition.start_date ||
+                new Date().toISOString().split('T')[0],
         });
 
         logger.info('Pre-competition created', {

@@ -51,7 +51,7 @@ export const golfAdapter: SportAdapter = {
             requireCountryMatch: false,
             requireDayMatch: true,
             matchField: 'name',
-            conflictColumns: ['pre_sport_id', 'name', 'start_date'],
+            conflictColumns: ['pre_sport_id', 'name', 'start_time'],
         },
         event: {
             nameSimilarity: 0.8,

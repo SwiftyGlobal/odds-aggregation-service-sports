@@ -564,7 +564,7 @@ export class OddsAggregationService {
      * Merge odds_status_id from multiple providers
      * - If all providers agree, use that value
      * - If any provider has STARTING_PRICE (3), use that (highest priority)
-     * - If providers disagree, calculate using last_changed_at vs event_start_time
+     * - If providers disagree, calculate using last_changed_at vs start_time
      */
     private static mergeOddsStatusId(
         providerOddsMap: Record<number, any>,
@@ -632,9 +632,9 @@ export class OddsAggregationService {
             return uniqueStatusIds[0];
         }
 
-        // Providers disagree - calculate using last_changed_at vs event_start_time
+        // Providers disagree - calculate using last_changed_at vs start_time
         if (!eventStartTime) {
-            logger.warn('Providers disagree on odds_status_id but event_start_time not available, using most common value', {
+            logger.warn('Providers disagree on odds_status_id but start_time not available, using most common value', {
                 statusIds,
                 uniqueStatusIds
             });
@@ -674,7 +674,7 @@ export class OddsAggregationService {
         logger.debug('Providers disagree on odds_status_id, calculated from change time', {
             provider_status_ids: uniqueStatusIds,
             calculated_status_id: calculatedStatus,
-            event_start_time: eventStartTime,
+            start_time: eventStartTime,
             most_recent_change_time: mostRecentChangeTime
         });
         return calculatedStatus;

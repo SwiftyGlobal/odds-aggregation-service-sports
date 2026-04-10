@@ -80,8 +80,8 @@ export class EventMatchingService {
 
             logger.info('Processing event change', {
                 providerEventId,
-                eventName: providerEvent.event_name,
-                eventStartTime: providerEvent.event_start_time,
+                eventName: providerEvent.name,
+                eventStartTime: providerEvent.start_time,
                 providerCompetitionId: providerEvent.provider_competition_id
             });
 
@@ -100,7 +100,7 @@ export class EventMatchingService {
             // Serialize by pre_event key to prevent deadlocks when multiple providers
             // try to create/update the same pre_event (same competition + start time)
             // Normalize timestamp to time window to ensure events within the window use the same lock key
-            const eventStartTime = new Date(providerEvent.event_start_time);
+            const eventStartTime = new Date(providerEvent.start_time);
             const timeWindowMs = CONFIG.eventMatching.timeWindowMinutes * 60 * 1000;
             // Round down to nearest time window boundary to ensure events within the window use the same key
             const normalizedTime = Math.floor(eventStartTime.getTime() / timeWindowMs) * timeWindowMs;
@@ -157,8 +157,8 @@ export class EventMatchingService {
         preCompetitionId: number,
         trx: any
     ): Promise<number> {
-        const eventName = providerEvent.event_name || '';
-        const eventStartTime = new Date(providerEvent.event_start_time);
+        const eventName = providerEvent.name || '';
+        const eventStartTime = new Date(providerEvent.start_time);
         const timeWindowMs = CONFIG.eventMatching.timeWindowMinutes * 60 * 1000;
         const minTime = new Date(eventStartTime.getTime() - timeWindowMs);
         const maxTime = new Date(eventStartTime.getTime() + timeWindowMs);
@@ -199,7 +199,7 @@ export class EventMatchingService {
         for (const candidate of candidates) {
             // Normalize candidate event name as well
             const normalizedCandidateName = await this.normalizeEventName(
-                candidate.event_name,
+                candidate.name,
                 null, // We don't know the provider for pre-events, so try all mappings
                 providerCompetition?.country_code,
                 trx
@@ -222,7 +222,7 @@ export class EventMatchingService {
                 similarity: bestSimilarity,
                 providerEventName: eventName,
                 normalizedProviderEventName: normalizedEventName,
-                preEventName: bestMatch.event_name
+                preEventName: bestMatch.name
             });
 
             // Enrich pre-event if needed
@@ -241,9 +241,9 @@ export class EventMatchingService {
 
         const adapter = getSportAdapter();
         const preEventData: any = {
-            event_name: normalizedEventName,
+            name: normalizedEventName,
             pre_competition_id: preCompetitionId,
-            event_start_time: eventStartTime,
+            start_time: eventStartTime,
             event_status_id: providerEvent.event_status_id || EVENT_STATUS_IDS.PRE_RACE,
             ew_place: providerEvent.ew_place || null,
             ew_price: providerEvent.ew_price || null,

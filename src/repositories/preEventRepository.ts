@@ -40,6 +40,8 @@ export class PreEventRepository {
     private static statusStringToId(status?: string | null): number {
         if (status === 'completed') return 3;
         if (status === 'in_progress') return 2;
+        if (status === 'suspended') return 1;
+        if (status === 'cancelled' || status === 'postponed') return 1;
         return 1;
     }
 
@@ -87,8 +89,8 @@ export class PreEventRepository {
         const db = trx || this.db;
         return await db(TABLES.PRE_EVENTS)
             .where('pre_event_group_id', preCompetitionId)
-            .whereBetween('event_start_time', [minTime, maxTime])
-            .whereNot('event_status', 'completed'); // Not FINISHED
+            .whereBetween('start_time', [minTime, maxTime])
+            .whereNot('status', 'completed'); // Not FINISHED
     }
 
     /**
@@ -96,9 +98,9 @@ export class PreEventRepository {
      */
     static async createOrUpdatePreEvent(
         data: {
-            event_name: string;
+            name: string;
             pre_competition_id: number;
-            event_start_time: Date;
+            start_time: Date;
             event_status_id?: number;
             ew_place?: number | null;
             ew_price?: number | null;
@@ -113,7 +115,7 @@ export class PreEventRepository {
         // Check if this pre-event already exists
         const existing = await db(TABLES.PRE_EVENTS)
             .where('pre_event_group_id', data.pre_competition_id)
-            .where('event_start_time', data.event_start_time)
+            .where('start_time', data.start_time)
             .select('id')
             .first();
 
@@ -140,7 +142,7 @@ export class PreEventRepository {
         const refId = competition
             ? buildEventRefId(
                 SPORT_CODES.CURRENT_SPORT,
-                data.event_start_time,
+                data.start_time,
                 competition.country_code,
                 competition[identifyingField]
             )
@@ -150,10 +152,10 @@ export class PreEventRepository {
         const insertData: Record<string, any> = {
             pre_sport_id: adapter.sport.id,
             event_ref_id: refId,
-            event_name: data.event_name,
+            name: data.name,
             pre_event_group_id: data.pre_competition_id,
-            event_start_time: data.event_start_time,
-            event_status: this.statusIdToString(initialStatusId),
+            start_time: data.start_time,
+            status: this.statusIdToString(initialStatusId),
             metadata: {
                 ew_place: data.ew_place || null,
                 ew_price: data.ew_price || null,
@@ -166,8 +168,8 @@ export class PreEventRepository {
 
         const mergeData: Record<string, any> = {
             event_ref_id: refId,
-            event_name: data.event_name,
-            event_status: this.statusIdToString(initialStatusId),
+            name: data.name,
+            status: this.statusIdToString(initialStatusId),
             last_changed_at: new Date(),
             updated_at: new Date()
             // Note: monitoring_started_at is NOT merged - keep original value
@@ -211,8 +213,9 @@ export class PreEventRepository {
         if (!row) return null;
         return {
             ...row,
-            event_status_id: row.event_status_id ?? this.statusStringToId(row.event_status),
+            event_status_id: row.event_status_id ?? this.statusStringToId(row.status),
             pre_competition_id: row.pre_competition_id ?? row.pre_event_group_id,
+            event_group_id: row.pre_event_group_id,
         };
     }
 
@@ -261,12 +264,12 @@ export class PreEventRepository {
         // Get existing status before update to detect changes
         const existing = await db(TABLES.PRE_EVENTS)
             .where('id', preEventId)
-            .select('event_status')
+            .select('status')
             .first();
 
         const updatePayload: any = { ...updates };
-        if (updatePayload.event_status_id != null && updatePayload.event_status == null) {
-            updatePayload.event_status = this.statusIdToString(updatePayload.event_status_id);
+        if (updatePayload.event_status_id != null && updatePayload.status == null) {
+            updatePayload.status = this.statusIdToString(updatePayload.event_status_id);
         }
         delete updatePayload.event_status_id;
         delete updatePayload.ew_place;
@@ -292,8 +295,8 @@ export class PreEventRepository {
             });
 
         // Insert event history if status changed
-        if (existing && updatePayload.event_status && this.statusStringToId(updatePayload.event_status) > this.statusStringToId(existing.event_status)) {
-            await this.insertPreEventHistory(preEventId, this.statusStringToId(updatePayload.event_status), trx);
+        if (existing && updatePayload.status && this.statusStringToId(updatePayload.status) > this.statusStringToId(existing.status)) {
+            await this.insertPreEventHistory(preEventId, this.statusStringToId(updatePayload.status), trx);
         }
     }
 
@@ -310,8 +313,8 @@ export class PreEventRepository {
 
         // Sanitize dividend_info if present
         const sanitizedUpdates: any = { ...updates };
-        if (sanitizedUpdates.event_status_id != null && sanitizedUpdates.event_status == null) {
-            sanitizedUpdates.event_status = this.statusIdToString(sanitizedUpdates.event_status_id);
+        if (sanitizedUpdates.event_status_id != null && sanitizedUpdates.status == null) {
+            sanitizedUpdates.status = this.statusIdToString(sanitizedUpdates.event_status_id);
         }
         delete sanitizedUpdates.event_status_id;
         delete sanitizedUpdates.ew_place;
@@ -417,10 +420,10 @@ export class PreEventRepository {
         const db = trx || this.db;
         const result = await db(TABLES.PRE_EVENTS)
             .where('id', preEventId)
-            .select('event_start_time')
+            .select('start_time')
             .first();
 
-        return result?.event_start_time || null;
+        return result?.start_time || null;
     }
 
     /**

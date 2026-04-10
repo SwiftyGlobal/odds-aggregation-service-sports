@@ -8,7 +8,7 @@
  *   participant:  HR.202603051700.USA.charles_town.senorita_jerico
  *
  * Components:
- *   - sport_code: from fs_pre_horse_racing_sports.sport_code (e.g. 'HR')
+ *   - sport_code: from the canonical sports row (e.g. fs_pre_sports.sport_code 'GOLF', or racing fs_pre_horse_racing_sports.sport_code 'HR')
  *   - datetime:   YYYYMMDDHHMM (competitions use 0000 for time)
  *   - country:    country_code from fs_pre_horse_racing_competitions (e.g. 'USA')
  *   - venue:      slugified canonical venue_name (e.g. 'charles_town')

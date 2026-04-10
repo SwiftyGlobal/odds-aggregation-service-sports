@@ -122,6 +122,9 @@ export class MarketRepository {
     ): Promise<any> {
         const db = trx || this.db;
 
+        const marketStatus =
+            data.is_suspended ? 'suspended' : (data.status || 'open');
+
         const [result] = await db(TABLES.PROVIDER_MARKETS)
             .insert({
                 market_ref_id: data.market_ref_id,
@@ -131,8 +134,7 @@ export class MarketRepository {
                 display_name: data.display_name || null,
                 start_time: data.start_time || null,
                 end_time: data.end_time || null,
-                market_status: data.status || 'open',
-                is_suspended: data.is_suspended || false,
+                market_status: marketStatus,
                 metadata: data.metadata || {},
                 provider_id: data.provider_id,
                 pre_market_id: data.pre_market_id || null,
@@ -147,8 +149,7 @@ export class MarketRepository {
                 display_name: data.display_name || null,
                 start_time: data.start_time || null,
                 end_time: data.end_time || null,
-                market_status: data.status || 'open',
-                is_suspended: data.is_suspended || false,
+                market_status: marketStatus,
                 metadata: data.metadata || {},
                 pre_market_id: data.pre_market_id || null,
                 updated_at: new Date()

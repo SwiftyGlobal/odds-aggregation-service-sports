@@ -56,7 +56,7 @@ export class OddsProcessingService {
             // Trigger odds re-aggregation for this event
             await this.reAggregateEventOdds(providerEvent.pre_event_id);
 
-            // Update pre-event coverage tracking (odds_available may have changed)
+            // Update pre-event coverage tracking (priced selections may have changed)
             await PreEventCoverageService.updatePreEventCoverage(providerEvent.pre_event_id);
 
         } catch (error) {

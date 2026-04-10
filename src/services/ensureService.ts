@@ -116,7 +116,7 @@ export class EnsureService {
             // Match or create pre-event
             logger.info('Ensuring event is matched', {
                 providerEventId,
-                eventName: providerEvent.event_name,
+                eventName: providerEvent.name,
                 preCompetitionId
             });
 

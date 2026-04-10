@@ -69,26 +69,30 @@ export class PreEventCoverageRepository {
             new Set(identityMatchedProviderIds)
         ).sort((a, b) => a - b);
 
-        // 3. Compute eligible_odds_provider_ids
-        // Subset of identity_matched_provider_ids where ANY linked provider_event
-        // has odds_available = true OR odds_available = false
-        // (Essentially all identity_matched providers are eligible)
+        // 3. Compute eligible_odds_provider_ids (all identity-matched for now)
         const eligibleOddsProviderIds = [...sortedIdentityMatched];
 
-        // 4. Compute fixed_odds_available_provider_ids
-        // Subset of identity_matched_provider_ids where ANY linked provider_event
-        // has odds_available = true
+        // 4. fixed_odds_available_provider_ids: identity-matched providers with at least one priced selection
         const fixedOddsAvailableProviderIds: number[] = [];
 
         for (const providerId of sortedIdentityMatched) {
-            // Check if any provider event has odds_available = true
-            const hasOddsAvailable = await trx(TABLES.PROVIDER_EVENTS)
-                .where('pre_event_id', preEventId)
-                .where('provider_id', providerId)
-                .where('odds_available', true)
-                .first('id');
+            const hasPricedSelection = await trx(TABLES.PROVIDER_ODDS)
+                .join(
+                    TABLES.PROVIDER_MARKETS,
+                    `${TABLES.PROVIDER_MARKETS}.id`,
+                    `${TABLES.PROVIDER_ODDS}.provider_market_id`
+                )
+                .join(
+                    TABLES.PROVIDER_EVENTS,
+                    `${TABLES.PROVIDER_EVENTS}.id`,
+                    `${TABLES.PROVIDER_MARKETS}.provider_event_id`
+                )
+                .where(`${TABLES.PROVIDER_EVENTS}.pre_event_id`, preEventId)
+                .where(`${TABLES.PROVIDER_EVENTS}.provider_id`, providerId)
+                .whereNotNull(`${TABLES.PROVIDER_ODDS}.price`)
+                .first(`${TABLES.PROVIDER_ODDS}.id`);
 
-            if (hasOddsAvailable) {
+            if (hasPricedSelection) {
                 fixedOddsAvailableProviderIds.push(providerId);
             }
         }

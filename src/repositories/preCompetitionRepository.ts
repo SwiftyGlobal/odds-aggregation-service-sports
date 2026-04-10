@@ -22,6 +22,7 @@ export class PreCompetitionRepository {
                 id: adapter.sport.id,
                 slug: adapter.sport.code.toLowerCase(),
                 name: adapter.sport.name,
+                sport_code: adapter.sport.code,
                 active: true,
                 metadata: {},
                 created_at: new Date(),
@@ -31,6 +32,7 @@ export class PreCompetitionRepository {
             .merge({
                 slug: adapter.sport.code.toLowerCase(),
                 name: adapter.sport.name,
+                sport_code: adapter.sport.code,
                 active: true,
                 updated_at: new Date(),
             });
@@ -44,9 +46,12 @@ export class PreCompetitionRepository {
     ): Promise<any[]> {
         const db = trx || this.db;
 
+        const dayStart = new Date(`${day}T00:00:00.000Z`);
+        const dayEnd = new Date(`${day}T23:59:59.999Z`);
+
         let query = db(TABLES.PRE_COMPETITIONS)
             .where('pre_sport_id', SPORT_IDS.CURRENT_SPORT)
-            .where('start_date', day);
+            .whereBetween('start_time', [dayStart, dayEnd]);
 
         if (requireCountryMatch && countryCode) {
             query = query.where('country_code', countryCode);
@@ -89,6 +94,9 @@ export class PreCompetitionRepository {
             nameKey
         );
 
+        const startTime = new Date(`${data.day}T00:00:00.000Z`);
+        const endTime = new Date(`${data.day}T23:59:59.999Z`);
+
         const [preCompetition] = await db(TABLES.PRE_COMPETITIONS)
             .insert({
                 group_ref_id: refId,
@@ -96,7 +104,8 @@ export class PreCompetitionRepository {
                 pre_sport_id: SPORT_IDS.CURRENT_SPORT,
                 group_type: 'tournament',
                 country_code: data.country_code,
-                start_date: data.day,
+                start_time: startTime,
+                end_time: endTime,
                 metadata: { venue_name: data.venue_name },
                 created_at: new Date(),
                 updated_at: new Date()
@@ -105,6 +114,8 @@ export class PreCompetitionRepository {
             .merge({
                 group_ref_id: refId,
                 name: data.competition_name,
+                start_time: startTime,
+                end_time: endTime,
                 metadata: { venue_name: data.venue_name },
                 updated_at: new Date()
             })

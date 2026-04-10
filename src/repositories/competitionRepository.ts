@@ -11,12 +11,16 @@ export class CompetitionRepository {
     private static db = DatabaseService.getInstance();
     private static normalizeRow(row: any): any {
         if (!row) return row;
+        const dayFromStart =
+            row.start_time != null
+                ? new Date(row.start_time).toISOString().slice(0, 10)
+                : null;
         return {
             ...row,
             competition_ref_id: row.competition_ref_id ?? row.group_ref_id,
             competition_name: row.competition_name ?? row.name,
             pre_competition_id: row.pre_competition_id ?? row.pre_event_group_id,
-            day: row.day ?? row.start_date,
+            day: row.day ?? dayFromStart ?? row.start_date,
         };
     }
 

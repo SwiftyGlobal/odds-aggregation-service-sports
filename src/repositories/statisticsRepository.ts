@@ -17,8 +17,8 @@ export class StatisticsRepository {
         const stats = await this.db(TABLES.PRE_EVENTS)
             .select(
                 this.db.raw('COUNT(*) as total_events'),
-                this.db.raw("COUNT(CASE WHEN event_status != 'completed' THEN 1 END) as active_events"),
-                this.db.raw("COUNT(CASE WHEN event_status = 'completed' THEN 1 END) as resulted_events")
+                this.db.raw("COUNT(CASE WHEN status != 'completed' THEN 1 END) as active_events"),
+                this.db.raw("COUNT(CASE WHEN status = 'completed' THEN 1 END) as resulted_events")
             )
             .first();
 

@@ -12,14 +12,20 @@ export class EventRepository {
     private static statusToLegacyId(status?: string | null): number {
         if (status === 'completed') return 3;
         if (status === 'in_progress') return 2;
+        if (status === 'suspended') return 1;
         return 1;
     }
     private static normalizeRow(row: any): any {
         if (!row) return row;
+        const status = row.status ?? row.event_status;
         return {
             ...row,
+            status,
             provider_competition_id: row.provider_competition_id ?? row.provider_event_group_id,
-            event_status_id: row.event_status_id ?? this.statusToLegacyId(row.event_status),
+            event_status_id: row.event_status_id ?? this.statusToLegacyId(status),
+            name: row.name ?? row.event_name,
+            start_time: row.start_time ?? row.event_start_time,
+            end_time: row.end_time ?? row.event_end_time,
         };
     }
 
