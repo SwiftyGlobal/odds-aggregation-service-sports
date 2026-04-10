@@ -77,16 +77,11 @@ export class MarketMatchingService {
                 return;
             }
 
-            // Get pre_market_type_id from provider_market_type_id
-            const preMarketTypeId = await MarketTypeRepository.getPreMarketTypeId(
-                providerMarket.provider_market_type_id,
-                transaction
-            );
+            const preMarketTypeId = providerMarket.ref_market_template_id;
 
             if (!preMarketTypeId) {
-                logger.warn('Market type not matched, skipping market matching', {
+                logger.warn('Market missing ref_market_template_id, skipping market matching', {
                     providerMarketId,
-                    providerMarketTypeId: providerMarket.provider_market_type_id
                 });
                 return;
             }

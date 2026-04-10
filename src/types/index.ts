@@ -272,8 +272,8 @@ export interface ProviderEventParticipant {
 export interface ProviderOdds {
     id: number;
     providerEventId: number;
-    providerEventParticipantId: number;
-    providerMarketTypeId: number;       // FK to provider_market_types
+    providerEventParticipantId?: number | null;
+    providerMarketId: number;
     odds?: string;
     displayOdds?: any;
     eventRefId?: string;

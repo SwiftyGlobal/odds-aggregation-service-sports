@@ -36,7 +36,6 @@ export interface SportAdapterTables {
     PROVIDER_ODDS: string;
     /** Append-only provider odds history (generic `fs_provider_*_odds_history` name) */
     PROVIDER_ODDS_HISTORY?: string;
-    PROVIDER_MARKET_TYPES: string;
 
     PRE_COMPETITIONS: string;
     PRE_EVENTS: string;

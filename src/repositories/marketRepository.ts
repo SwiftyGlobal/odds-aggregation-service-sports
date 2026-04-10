@@ -107,7 +107,7 @@ export class MarketRepository {
         data: {
             market_ref_id: string;
             provider_event_id: number;
-            provider_market_type_id: number;
+            ref_market_template_id: number;
             name?: string | null;
             display_name?: string | null;
             start_time?: Date | null;
@@ -126,7 +126,7 @@ export class MarketRepository {
             .insert({
                 market_ref_id: data.market_ref_id,
                 provider_event_id: data.provider_event_id,
-                provider_market_type_id: data.provider_market_type_id,
+                ref_market_template_id: data.ref_market_template_id,
                 name: data.name || null,
                 display_name: data.display_name || null,
                 start_time: data.start_time || null,
@@ -142,7 +142,7 @@ export class MarketRepository {
             .onConflict(['provider_id', 'market_ref_id'])
             .merge({
                 provider_event_id: data.provider_event_id,
-                provider_market_type_id: data.provider_market_type_id,
+                ref_market_template_id: data.ref_market_template_id,
                 name: data.name || null,
                 display_name: data.display_name || null,
                 start_time: data.start_time || null,
