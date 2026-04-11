@@ -9,6 +9,7 @@
  */
 
 import { logger } from '../utils/logger.js';
+import { metricsService } from './metricsService.js';
 import { MarketRepository } from '../repositories/marketRepository.js';
 import { MarketTypeRepository } from '../repositories/marketTypeRepository.js';
 import { EventRepository } from '../repositories/eventRepository.js';
@@ -80,8 +81,14 @@ export class MarketMatchingService {
             const preMarketTypeId = providerMarket.ref_market_template_id;
 
             if (!preMarketTypeId) {
-                logger.warn('Market missing ref_market_template_id, skipping market matching', {
+                logger.error('Market missing ref_market_template_id; cannot match to canonical template', {
                     providerMarketId,
+                    providerId: providerMarket.provider_id,
+                    providerEventId: providerMarket.provider_event_id,
+                    marketRefId: providerMarket.market_ref_id,
+                });
+                metricsService.increment('market_matching_missing_ref_template_total', {
+                    provider_id: providerMarket.provider_id,
                 });
                 return;
             }

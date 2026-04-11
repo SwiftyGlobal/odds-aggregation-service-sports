@@ -43,6 +43,8 @@ export const golfAdapter: SportAdapter = {
     },
     providers: [
         { id: 1, name: 'unibet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_UNIBET_ENABLED') },
+        { id: 2, name: 'coral', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_CORAL_ENABLED') },
+        { id: 3, name: '888sport', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_888SPORT_ENABLED') },
         { id: 4, name: 'netbet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_NETBET_ENABLED') },
     ],
     matching: {
@@ -99,17 +101,11 @@ export const golfAdapter: SportAdapter = {
     fields: {
         providerOddsMarketField: 'provider_market_id',
         marketTypeResolution: 'direct_fk',
-        hasDrawNumber: false,
-        hasJockey: false,
-        hasSP: false,
-        hasHandicap: false,
-        hasDistance: false,
         hasSuspended: true,
         hasOutright: true,
         hasLiveStatus: true,
         hasParentEvent: false,
         hasPeriodNumber: true,
-        hasParticipantStatus: false,
     },
     adapterKey: 'golf',
     hooks: {
@@ -150,6 +146,11 @@ export const golfAdapter: SportAdapter = {
         },
         odds: {
             supportsStartingPrice() {
+                return false;
+            },
+        },
+        projection: {
+            supportsDividendInfo() {
                 return false;
             },
         },

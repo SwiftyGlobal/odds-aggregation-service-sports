@@ -6,6 +6,7 @@
 
 import PQueue from 'p-queue';
 import { logger } from '../utils/logger.js';
+import { metricsService } from './metricsService.js';
 import { POLLING_CONSTANTS } from '../constants/polling.js';
 import { PollingRepository, getPolledRowPrimaryKey } from '../repositories/pollingRepository.js';
 import { PollingChangeProcessor } from './pollingChangeProcessor.js';
@@ -82,24 +83,43 @@ export class PollingService {
     }
 
     /**
-     * Initialize polling state for each monitored table
+     * Initialize polling state for each monitored table.
+     *
+     * Resume rule:
+     *  - If a row exists in `fs_agg_polling_cursors` for the table, resume
+     *    from the persisted `last_updated_at`.
+     *  - Otherwise, bootstrap from `now() - POLL_CATCHUP_MINUTES`.
      */
     private async initializeTableStates(): Promise<void> {
         const serverTime = await PollingRepository.getServerTime();
         const catchupMs = POLLING_CONSTANTS.POLL_CATCHUP_MINUTES * 60 * 1000;
-        const startTime = new Date(serverTime.getTime() - catchupMs);
+        const bootstrapTime = new Date(serverTime.getTime() - catchupMs);
 
+        const persisted = await PollingRepository.loadAllCursors();
+
+        let resumedCount = 0;
         for (const table of POLLING_CONSTANTS.MONITORED_TABLES) {
-            this.tableStates.set(table, {
-                lastPollTime: startTime,
-                boundaryIds: new Set()
-            });
+            const cursor = persisted.get(table);
+            if (cursor) {
+                resumedCount++;
+                this.tableStates.set(table, {
+                    lastPollTime: cursor.lastUpdatedAt,
+                    boundaryIds: cursor.lastId ? new Set([cursor.lastId]) : new Set(),
+                });
+            } else {
+                this.tableStates.set(table, {
+                    lastPollTime: bootstrapTime,
+                    boundaryIds: new Set(),
+                });
+            }
         }
 
         logger.info('Polling state initialized', {
-            startTime: startTime.toISOString(),
+            bootstrapTime: bootstrapTime.toISOString(),
             catchupMinutes: POLLING_CONSTANTS.POLL_CATCHUP_MINUTES,
-            tableCount: POLLING_CONSTANTS.MONITORED_TABLES.length
+            tableCount: POLLING_CONSTANTS.MONITORED_TABLES.length,
+            resumedFromCursor: resumedCount,
+            bootstrapped: POLLING_CONSTANTS.MONITORED_TABLES.length - resumedCount,
         });
     }
 
@@ -163,6 +183,21 @@ export class PollingService {
                 // Advance cursor
                 state.lastPollTime = new Date(maxUpdatedAt);
                 state.boundaryIds = newBoundaryIds;
+
+                // Persist cursor so a restart resumes from here.
+                const lastIdInBatch = Number(rows[rows.length - 1].id ?? 0);
+                try {
+                    await PollingRepository.upsertCursor(
+                        table,
+                        state.lastPollTime,
+                        lastIdInBatch
+                    );
+                } catch (err) {
+                    logger.warn('Failed to persist polling cursor', {
+                        table,
+                        err: (err as Error).message,
+                    });
+                }
             }
 
             this.rowsProcessedTotal += totalRowsThisCycle;
@@ -198,12 +233,17 @@ export class PollingService {
     private enqueueRow(table: string, row: any, isNew: boolean, pollCycleId: string): void {
         this.processingQueue.add(async () => {
             let lastError: Error | null = null;
+            const op = isNew ? 'insert' : 'update';
 
             for (let attempt = 1; attempt <= POLLING_CONSTANTS.POLL_RETRY_MAX; attempt++) {
+                const startedAt = Date.now();
                 try {
                     await PollingChangeProcessor.processRow(table, row, isNew, pollCycleId);
+                    metricsService.observe('processing_latency_ms', Date.now() - startedAt, { table, op });
+                    metricsService.increment('polling_rows_processed_total', { table, op });
                     return;
                 } catch (error) {
+                    metricsService.observe('processing_latency_ms', Date.now() - startedAt, { table, op });
                     lastError = error as Error;
 
                     if (isTransientError(error) && attempt < POLLING_CONSTANTS.POLL_RETRY_MAX) {
@@ -225,6 +265,7 @@ export class PollingService {
             }
 
             // All retries exhausted or permanent error
+            metricsService.increment('polling_rows_failed_total', { table, op });
             logger.error('Polling processing failed permanently', lastError as Error, {
                 table,
                 rowId: getPolledRowPrimaryKey(table, row),

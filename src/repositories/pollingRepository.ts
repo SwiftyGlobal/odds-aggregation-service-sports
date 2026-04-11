@@ -49,4 +49,51 @@ export class PollingRepository {
         const result = await db.raw('SELECT NOW() AS server_time');
         return new Date(result.rows[0].server_time);
     }
+
+    /**
+     * Load all persisted polling cursors from `fs_agg_polling_cursors`.
+     * The aggregation service is the sole writer of this table.
+     */
+    static async loadAllCursors(): Promise<
+        Map<string, { lastUpdatedAt: Date; lastId: number }>
+    > {
+        const db = DatabaseService.getInstance();
+        const rows = await db('fs_agg_polling_cursors').select(
+            'table_name',
+            'last_updated_at',
+            'last_id'
+        );
+        const out = new Map<string, { lastUpdatedAt: Date; lastId: number }>();
+        for (const row of rows) {
+            out.set(row.table_name, {
+                lastUpdatedAt: new Date(row.last_updated_at),
+                lastId: Number(row.last_id ?? 0),
+            });
+        }
+        return out;
+    }
+
+    /**
+     * Upsert a polling cursor for a single table.
+     */
+    static async upsertCursor(
+        tableName: string,
+        lastUpdatedAt: Date,
+        lastId: number
+    ): Promise<void> {
+        const db = DatabaseService.getInstance();
+        await db('fs_agg_polling_cursors')
+            .insert({
+                table_name: tableName,
+                last_updated_at: lastUpdatedAt,
+                last_id: lastId,
+                updated_at: new Date(),
+            })
+            .onConflict('table_name')
+            .merge({
+                last_updated_at: lastUpdatedAt,
+                last_id: lastId,
+                updated_at: new Date(),
+            });
+    }
 }

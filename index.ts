@@ -13,6 +13,7 @@ import { RealTimeAggregationService } from './src/services/realTimeAggregationSe
 import { DatabaseService } from './src/utils/database.js';
 import { logger } from './src/utils/logger.js';
 import { healthCheckServer } from './src/utils/healthCheck.js';
+import { metricsService } from './src/services/metricsService.js';
 
 class AggregationServiceCLI {
     private aggregationService: AggregationService;
@@ -71,6 +72,9 @@ class AggregationServiceCLI {
         healthCheckServer.setPollingStatsCallback(() => this.realTimeService!.getPollingStats());
         healthCheckServer.start();
 
+        // Start metrics endpoint
+        await metricsService.start();
+
         console.log('\n' + '='.repeat(80));
         console.log('ODDS AGGREGATION SERVICE STARTING');
         console.log('='.repeat(80));
@@ -85,6 +89,7 @@ class AggregationServiceCLI {
         const shutdown = async () => {
             logger.info('Shutdown signal received');
             await healthCheckServer.stop();
+            await metricsService.stop();
             if (this.realTimeService) {
                 await this.realTimeService.stop();
             }

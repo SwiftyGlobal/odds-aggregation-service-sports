@@ -13,31 +13,6 @@ import { getSportAdapter } from '../adapters/index.js';
 export class PreCompetitionRepository {
     private static db = DatabaseService.getInstance();
 
-    private static async ensurePreSportExists(trx?: Knex.Transaction): Promise<void> {
-        const db = trx || this.db;
-        const adapter = getSportAdapter();
-
-        await db('fs_pre_sports')
-            .insert({
-                id: adapter.sport.id,
-                slug: adapter.sport.code.toLowerCase(),
-                name: adapter.sport.name,
-                sport_code: adapter.sport.code,
-                active: true,
-                metadata: {},
-                created_at: new Date(),
-                updated_at: new Date(),
-            })
-            .onConflict('id')
-            .merge({
-                slug: adapter.sport.code.toLowerCase(),
-                name: adapter.sport.name,
-                sport_code: adapter.sport.code,
-                active: true,
-                updated_at: new Date(),
-            });
-    }
-
     static async findCandidatesByDay(
         day: string,
         countryCode: string | null,
@@ -80,7 +55,6 @@ export class PreCompetitionRepository {
         trx?: Knex.Transaction
     ): Promise<number> {
         const db = trx || this.db;
-        await this.ensurePreSportExists(trx);
 
         const adapter = getSportAdapter();
         const matchField = adapter.matching.competition.matchField;

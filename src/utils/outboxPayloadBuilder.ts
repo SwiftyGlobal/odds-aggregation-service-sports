@@ -3,7 +3,6 @@
  */
 
 import { OUTBOX_SCHEMA_VERSION } from '../constants/outbox.js';
-import { getSportAdapter } from '../adapters/index.js';
 
 const parseJson = (value: any, fallback: any) => {
     if (value == null) return fallback;
@@ -68,37 +67,16 @@ export const buildPreEventFullPayload = (params: {
 
     const displayDividendInfo = parseJson(preEvent?.display_dividend_info, null);
 
-    const fields = getSportAdapter().fields;
-
     const participantPayload = (participants || [])
         .slice()
         .sort((a, b) => (a?.id ?? 0) - (b?.id ?? 0))
         .map((p) => {
-            const extraInfo = parseJson(p.extra_info, {});
-
             const entry: Record<string, any> = {
                 id: p.id ?? p.entry_id ?? null,
                 display_name: p.display_name ?? p.name ?? null,
                 slug: p.slug ?? p.ref_id ?? null,
                 position: p.position ?? null,
             };
-
-            // Sport-specific participant fields — only include when adapter supports them
-            if (fields.hasParticipantStatus) {
-                entry.participant_status_id = p.participant_status_id ?? null;
-            }
-            if (fields.hasJockey) {
-                entry.jockey = p.jockey ?? null;
-                entry.silk_info = extraInfo?.silk_info ?? null;
-                entry.stall = extraInfo?.stall ?? null;
-                entry.age = extraInfo?.age ?? null;
-                entry.weight = extraInfo?.weight ?? null;
-                entry.trainer = extraInfo?.trainer ?? null;
-                entry.owner = extraInfo?.owner ?? null;
-            }
-            if (fields.hasDrawNumber) {
-                entry.draw_number = p.draw_number ?? null;
-            }
 
             return entry;
         });
@@ -120,14 +98,6 @@ export const buildPreEventFullPayload = (params: {
         last_changed_at: toIso(preEvent?.last_changed_at),
         participants: participantPayload,
     };
-
-    // Sport-specific event fields — only include when adapter supports them
-    if (fields.hasDistance) {
-        eventPayload.distance = preEvent?.distance ?? null;
-    }
-    if (fields.hasHandicap) {
-        eventPayload.handicap = preEvent?.handicap ?? null;
-    }
 
     return eventPayload;
 };

@@ -80,20 +80,20 @@ export interface SportAdapterPolling {
     orderByIdColumn?: Record<string, string>;
 }
 
+/**
+ * Sport-agnostic feature flags. Anything that is racing-specific
+ * (jockey, draw number, handicap, distance, SP, participant status)
+ * was removed in the schema-hardening cleanup. If a future racing
+ * adapter needs those fields, route them through `extensions`.
+ */
 export interface SportAdapterFields {
     providerOddsMarketField: 'provider_market_id';
     marketTypeResolution: 'direct_fk';
-    hasDrawNumber: boolean;
-    hasJockey: boolean;
-    hasSP: boolean;
-    hasHandicap: boolean;
-    hasDistance: boolean;
     hasSuspended: boolean;
     hasOutright: boolean;
     hasLiveStatus: boolean;
     hasParentEvent: boolean;
     hasPeriodNumber: boolean;
-    hasParticipantStatus: boolean;
 }
 
 export interface ParticipantHistoryPolicy {
@@ -123,12 +123,24 @@ export interface EventEnrichmentContext {
 }
 
 export interface SportAdapterHooks {
+    /**
+     * Participant hooks. The four hooks below
+     * (`getProviderParticipantSelectColumns`, `getHistoryPolicy`,
+     * `isActiveParticipantFilterEnabled`, `getDefaultParticipantStatusId`)
+     * exist to support racing-style participant tracking. They are
+     * deprecated for non-racing adapters; their consumer code paths in
+     * preEventParticipantRepository / preEventParticipantHistoryRepository
+     * are guarded so that golf-style adapters can return safe no-ops.
+     */
     participant: {
+        /** @deprecated racing-only; non-racing adapters should return baseColumns */
         getProviderParticipantSelectColumns(baseColumns: string[]): string[];
         applyPreEventParticipantFields(ctx: ParticipantPersistenceContext): void;
+        /** @deprecated racing-only; non-racing adapters should return trackHistory:false */
         getHistoryPolicy(): ParticipantHistoryPolicy;
+        /** @deprecated racing-only; non-racing adapters should return false */
         isActiveParticipantFilterEnabled(): boolean;
-        /** Default participant status ID (e.g. 1 = Runner for horse racing, 1 = Active for other sports) */
+        /** @deprecated racing-only; non-racing adapters should return 1 */
         getDefaultParticipantStatusId(): number;
     };
     event: {
@@ -137,6 +149,10 @@ export interface SportAdapterHooks {
     };
     odds: {
         supportsStartingPrice(): boolean;
+    };
+    projection: {
+        /** Whether the adapter wants dividend-info projection (racing). Golf returns false. */
+        supportsDividendInfo(): boolean;
     };
     metadata: {
         getSportSlug(): string;
@@ -163,6 +179,8 @@ export interface SportAdapter {
     fields: SportAdapterFields;
     adapterKey: string;
     hooks: SportAdapterHooks;
+    /** Free-form bag for sport-specific toggles (e.g. racing extensions). */
+    extensions?: Record<string, unknown>;
 }
 
 export type AdapterRegistry = Record<string, SportAdapter>;
