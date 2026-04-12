@@ -76,6 +76,8 @@ export class PreOddsRepository {
             pre_event_id: number;
             pre_market_id: number;
             option_key: string;
+            /** Human-readable label; when omitted on merge, existing fs_pre_selections.display_name is kept. */
+            display_name?: string;
             pre_event_participant_id?: number | null;
             average_odds?: number | null;
             provider_count: number;
@@ -104,6 +106,23 @@ export class PreOddsRepository {
         };
         const providerPrices = metadata.provider_odds;
         const displayPrices = metadata.display_odds;
+        const insertDisplayName = (data.display_name?.trim() || data.option_key) as string;
+
+        const mergeFields: Record<string, unknown> = {
+            pre_event_entry_id: data.pre_event_participant_id ?? null,
+            current_price: data.average_odds,
+            average_price: data.average_odds,
+            provider_count: data.provider_count ?? 0,
+            provider_prices: providerPrices,
+            display_prices: displayPrices,
+            selection_status: selectionStatus,
+            active: data.active ?? true,
+            last_changed_at: lastChangedAt,
+            updated_at: new Date(),
+        };
+        if (data.display_name !== undefined) {
+            mergeFields.display_name = insertDisplayName;
+        }
 
         const [preOdds] = await db(TABLES.PRE_ODDS)
             .insert({
@@ -112,7 +131,7 @@ export class PreOddsRepository {
                 pre_event_entry_id: data.pre_event_participant_id ?? null,
                 selection_ref_id: `${data.pre_market_id}:${data.option_key}`,
                 option_key: data.option_key,
-                display_name: data.option_key,
+                display_name: insertDisplayName,
                 opening_price: data.average_odds,
                 current_price: data.average_odds,
                 average_price: data.average_odds,
@@ -127,18 +146,7 @@ export class PreOddsRepository {
                 updated_at: new Date(),
             })
             .onConflict(['pre_market_id', 'option_key'])
-            .merge({
-                pre_event_entry_id: data.pre_event_participant_id ?? null,
-                current_price: data.average_odds,
-                average_price: data.average_odds,
-                provider_count: data.provider_count ?? 0,
-                provider_prices: providerPrices,
-                display_prices: displayPrices,
-                selection_status: selectionStatus,
-                active: data.active ?? true,
-                last_changed_at: lastChangedAt,
-                updated_at: new Date(),
-            })
+            .merge(mergeFields)
             .returning('*');
 
         await db(TABLES.PRE_ODDS_HISTORY).insert({

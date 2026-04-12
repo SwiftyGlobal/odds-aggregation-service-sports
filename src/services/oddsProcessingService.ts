@@ -21,6 +21,7 @@ import { getSportAdapter } from '../adapters/index.js';
 import { ODDS_MARGIN_CONFIG } from '../config/index.js';
 import { removeOutliers, calculateMean, ProviderOddsCandidate } from '../utils/outlierRemoval.js';
 import { snapToLadder } from '../utils/oddsLadder.js';
+import { pickDisplayNameForPreSelection } from '../utils/aggregatedSelectionDisplayName.js';
 import { OUTBOX_EVENT_TYPES } from '../constants/outbox.js';
 import { buildPreOddsDeltaPayload, buildSelectionKey } from '../utils/outboxPayloadBuilder.js';
 import { PreEventOutboxService } from './preEventOutboxService.js';
@@ -209,7 +210,8 @@ export class OddsProcessingService {
                                 providerId: providerEvent.provider_id,
                                 odds: odd.odds,
                                 displayOdds: odd.display_odds,
-                                lastUpdated: odd.updated_at
+                                lastUpdated: odd.updated_at,
+                                display_name: odd.display_name as string | undefined
                             });
                         }
                     }
@@ -241,6 +243,16 @@ export class OddsProcessingService {
             const includedProviderIds = included.map(c => c.providerId);
             const outlierProviderIds = outliers.map(c => c.providerId);
             const includedDecimals = included.map(c => c.decimal);
+
+            const displayNameByProviderId: Record<number, string | null | undefined> = {};
+            for (const o of allOdds) {
+                displayNameByProviderId[o.providerId] = o.display_name;
+            }
+            const resolvedDisplayName = pickDisplayNameForPreSelection(
+                displayNameByProviderId,
+                includedProviderIds,
+                canonicalOptionKey
+            );
 
             // Calculate average from included providers only
             const averageOdds = calculateMean(includedDecimals);
@@ -275,7 +287,8 @@ export class OddsProcessingService {
                 providerCount: included.length,
                 providerOdds,
                 displayOddsProviderIds: includedProviderIds,
-                outlierOddsProviderIds: outlierProviderIds
+                outlierOddsProviderIds: outlierProviderIds,
+                displayName: resolvedDisplayName
             });
 
             logger.debug('Odds aggregated for participant and market', {
@@ -313,6 +326,7 @@ export class OddsProcessingService {
         providerOdds: any;
         displayOddsProviderIds: number[];
         outlierOddsProviderIds: number[];
+        displayName: string;
     }): Promise<void> {
         // Apply margin and snap to ladder for display_odds
         const marginPct = ODDS_MARGIN_CONFIG.marginPct;
@@ -335,7 +349,8 @@ export class OddsProcessingService {
             // Check if odds have changed significantly
             const oddsChanged =
                 Math.abs(existingOdds.average_odds - data.averageOdds) > 0.01 ||
-                existingOdds.provider_count !== data.providerCount;
+                existingOdds.provider_count !== data.providerCount ||
+                (existingOdds.display_name ?? '').trim() !== data.displayName.trim();
 
             if (oddsChanged) {
                 // Update existing odds (history creation is driven only by provider history events)
@@ -345,6 +360,7 @@ export class OddsProcessingService {
                             pre_event_id: data.preEventId,
                             pre_market_id: data.preMarketId,
                             option_key: data.canonicalOptionKey,
+                            display_name: data.displayName,
                             pre_event_participant_id: data.preEventParticipantId,
                             average_odds: data.averageOdds,
                             provider_count: data.providerCount,
@@ -384,6 +400,7 @@ export class OddsProcessingService {
                         pre_event_id: data.preEventId,
                         pre_market_id: data.preMarketId,
                         option_key: data.canonicalOptionKey,
+                        display_name: data.displayName,
                         pre_event_participant_id: data.preEventParticipantId,
                         average_odds: data.averageOdds,
                         provider_count: data.providerCount,
@@ -527,7 +544,7 @@ export class OddsProcessingService {
                     )
                     .where(`${TABLES.PROVIDER_EVENTS}.pre_event_id`, preEventId)
                     .where(`${TABLES.PROVIDER_MARKETS}.pre_market_id`, preOdd.market_id)
-                    .where(function() {
+                    .where(function () {
                         const entryId = preOdd.pre_event_entry_id ?? preOdd.pre_event_participant_id ?? preOdd.event_entry_id;
                         if (entryId) {
                             this.where(`${TABLES.PROVIDER_EVENT_PARTICIPANTS}.pre_event_entry_id`, entryId);

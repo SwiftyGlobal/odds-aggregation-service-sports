@@ -21,6 +21,7 @@ import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
 import { determineOddsStatusFromChangeTime } from '../utils/oddsStatusUtils.js';
 import { removeOutliers, calculateMean, ProviderOddsCandidate } from '../utils/outlierRemoval.js';
 import { snapToLadder } from '../utils/oddsLadder.js';
+import { pickDisplayNameForPreSelection } from '../utils/aggregatedSelectionDisplayName.js';
 import { getSportAdapter } from '../adapters/index.js';
 import { OUTBOX_EVENT_TYPES } from '../constants/outbox.js';
 import { buildPreOddsDeltaPayload, buildSelectionKey } from '../utils/outboxPayloadBuilder.js';
@@ -263,6 +264,7 @@ export class OddsAggregationService {
                 // Step 3: Convert to decimal odds & build map with timestamps
                 // Store shape: { provider_id: { odds: {...}, sp: {...} | null } }
                 const providerOddsMap: Record<number, any> = {};
+                const providerDisplayNames: Record<number, string | null | undefined> = {};
                 const providerOddsDecimal: Record<number, number> = {}; // For calculations
 
                 for (const row of allProviderOdds) {
@@ -339,6 +341,7 @@ export class OddsAggregationService {
                             odds: oddsObject,
                             sp: spObject
                         };
+                        providerDisplayNames[providerId] = row.display_name;
                         providerOddsDecimal[providerId] = dec;
                     }
                 }
@@ -418,6 +421,11 @@ export class OddsAggregationService {
                 const includedProviderIds = included.map(c => c.providerId);
                 const outlierProviderIds = outliers.map(c => c.providerId);
                 const includedDecimals = included.map(c => c.decimal);
+                const resolvedDisplayName = pickDisplayNameForPreSelection(
+                    providerDisplayNames,
+                    includedProviderIds,
+                    optionKey
+                );
 
                 // Step 4.2: Compute average from included providers only
                 const avg = calculateMean(includedDecimals);
@@ -464,10 +472,13 @@ export class OddsAggregationService {
                         : existing.provider_odds)
                     : {};
 
+                const existingDisplayTrimmed = (existing?.display_name ?? '').trim();
+                const displayNameChanged = existingDisplayTrimmed !== resolvedDisplayName;
                 const changed = !existing ||
                     existing.average_odds !== avg ||
                     existing.provider_count !== activeProviderCount ||
-                    JSON.stringify(existingProviderOdds) !== JSON.stringify(providerOddsMap);
+                    JSON.stringify(existingProviderOdds) !== JSON.stringify(providerOddsMap) ||
+                    displayNameChanged;
 
                 if (!changed && existing) {
                     logger.debug('No changes detected, skipping update', {
@@ -505,6 +516,7 @@ export class OddsAggregationService {
                         pre_event_id: preEventId,
                         pre_market_id: preMarketId,
                         option_key: optionKey,
+                        display_name: resolvedDisplayName,
                         pre_event_participant_id: preEventParticipantId,
                         average_odds: avg,
                         provider_count: activeProviderCount,
