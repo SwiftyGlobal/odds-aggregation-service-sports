@@ -35,6 +35,23 @@ export class PreCompetitionRepository {
         return await query;
     }
 
+    /** All canonical groups for the current sport (no `start_time` day window). Used when adapter skips day filter. */
+    static async findCandidatesForCurrentSport(
+        countryCode: string | null,
+        requireCountryMatch: boolean,
+        trx?: Knex.Transaction
+    ): Promise<any[]> {
+        const db = trx || this.db;
+
+        let query = db(TABLES.PRE_COMPETITIONS).where('pre_sport_id', SPORT_IDS.CURRENT_SPORT);
+
+        if (requireCountryMatch && countryCode) {
+            query = query.where('country_code', countryCode);
+        }
+
+        return await query;
+    }
+
     static async getPreCompetition(
         preCompetitionId: number,
         trx?: Knex.Transaction

@@ -11,14 +11,62 @@ import { EVENT_STATUS_IDS } from '../constants/status.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { CompetitionRepository } from '../repositories/competitionRepository.js';
 import { PreEventRepository } from '../repositories/preEventRepository.js';
+import { PreCompetitionRepository } from '../repositories/preCompetitionRepository.js';
 import { VenueNameMapRepository } from '../repositories/venueNameMapRepository.js';
 import { EnsureService } from './ensureService.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
 import { PreEventCoverageService } from './preEventCoverageService.js';
 import { getSportAdapter } from '../adapters/index.js';
+import { normalizeGolfEventTitleForMatching } from '../utils/golfEventTitleNormalize.js';
+import { slugify } from '../utils/refIdUtils.js';
 
 export class EventMatchingService {
     private static db = DatabaseService.getInstance();
+
+    private static isGolfNameOnlyEventMatch(): boolean {
+        const adapter = getSportAdapter();
+        return adapter.adapterKey === 'golf' && CONFIG.eventMatching.golfMatchEventsByNameOnly === true;
+    }
+
+    /**
+     * Candidate search window for time-based event matching (±timeWindowMinutes around provider start).
+     */
+    private static getEventCandidateTimeBounds(providerEvent: any): {
+        minTime: Date;
+        maxTime: Date;
+        lockBucketMs: number;
+    } {
+        const eventStartTime = new Date(providerEvent.start_time);
+        const timeWindowMs = CONFIG.eventMatching.timeWindowMinutes * 60 * 1000;
+        return {
+            minTime: new Date(eventStartTime.getTime() - timeWindowMs),
+            maxTime: new Date(eventStartTime.getTime() + timeWindowMs),
+            lockBucketMs: timeWindowMs,
+        };
+    }
+
+    private static combineGolfMatchLabel(groupName: string, eventName: string): string {
+        return `${(groupName || '').trim()} ${(eventName || '').trim()}`.trim();
+    }
+
+    private static golfEventMatchLockKey(
+        preCompetitionId: number,
+        providerGroupName: string,
+        eventName: string
+    ): string {
+        const bundle = this.combineGolfMatchLabel(providerGroupName, eventName);
+        const slug =
+            slugify(this.titleForEventSimilarity(bundle)).slice(0, 120) || 'unknown';
+        return `pre-${preCompetitionId}-${slug}`;
+    }
+
+    private static titleForEventSimilarity(name: string): string {
+        const lower = (name || '').toLowerCase();
+        if (getSportAdapter().adapterKey === 'golf') {
+            return normalizeGolfEventTitleForMatching(lower);
+        }
+        return lower;
+    }
 
     /**
      * Process event change
@@ -97,14 +145,25 @@ export class EventMatchingService {
                 transaction
             );
 
-            // Serialize by pre_event key to prevent deadlocks when multiple providers
-            // try to create/update the same pre_event (same competition + start time)
-            // Normalize timestamp to time window to ensure events within the window use the same lock key
-            const eventStartTime = new Date(providerEvent.start_time);
-            const timeWindowMs = CONFIG.eventMatching.timeWindowMinutes * 60 * 1000;
-            // Round down to nearest time window boundary to ensure events within the window use the same key
-            const normalizedTime = Math.floor(eventStartTime.getTime() / timeWindowMs) * timeWindowMs;
-            const preEventLockKey = `pre-${preCompetitionId}-${normalizedTime}`;
+            // Serialize so concurrent providers don't create duplicate pre_events for the same fixture.
+            let preEventLockKey: string;
+            if (this.isGolfNameOnlyEventMatch()) {
+                const pc = await CompetitionRepository.getProviderCompetition(
+                    providerEvent.provider_competition_id,
+                    transaction
+                );
+                const groupName = pc?.competition_name || pc?.name || '';
+                preEventLockKey = this.golfEventMatchLockKey(
+                    preCompetitionId,
+                    groupName,
+                    providerEvent.name || ''
+                );
+            } else {
+                const eventStartTime = new Date(providerEvent.start_time);
+                const { lockBucketMs } = this.getEventCandidateTimeBounds(providerEvent);
+                const normalizedTime = Math.floor(eventStartTime.getTime() / lockBucketMs) * lockBucketMs;
+                preEventLockKey = `pre-${preCompetitionId}-${normalizedTime}`;
+            }
 
             // Note: We're already in a transaction, but we need application-level serialization
             // to prevent concurrent pre_event creation/updates from different provider events
@@ -159,14 +218,14 @@ export class EventMatchingService {
     ): Promise<number> {
         const eventName = providerEvent.name || '';
         const eventStartTime = new Date(providerEvent.start_time);
-        const timeWindowMs = CONFIG.eventMatching.timeWindowMinutes * 60 * 1000;
-        const minTime = new Date(eventStartTime.getTime() - timeWindowMs);
-        const maxTime = new Date(eventStartTime.getTime() + timeWindowMs);
 
         // Get provider competition to access provider_id and country_code for venue mapping
         const providerCompetition = providerEvent.provider_competition_id
             ? await CompetitionRepository.getProviderCompetition(providerEvent.provider_competition_id, trx)
             : null;
+
+        const preGroup = await PreCompetitionRepository.getPreCompetition(preCompetitionId, trx);
+        const preGroupName = (preGroup?.name as string) || '';
 
         // Normalize event name by replacing venue name with canonical name if mapping exists
         const normalizedEventName = await this.normalizeEventName(
@@ -176,39 +235,66 @@ export class EventMatchingService {
             trx
         );
 
-        // Query existing pre-events for same competition and time window
-        const candidates = await PreEventRepository.findCandidateEvents(
-            preCompetitionId,
-            minTime,
-            maxTime,
-            trx
-        );
+        const nameOnlyGolf = this.isGolfNameOnlyEventMatch();
+        let candidates: any[];
+        const timeBounds = nameOnlyGolf ? null : this.getEventCandidateTimeBounds(providerEvent);
+        if (nameOnlyGolf) {
+            candidates = await PreEventRepository.findCandidateEventsInPreGroup(preCompetitionId, trx);
+        } else {
+            candidates = await PreEventRepository.findCandidateEvents(
+                preCompetitionId,
+                timeBounds!.minTime,
+                timeBounds!.maxTime,
+                trx
+            );
+        }
 
-        logger.debug('Found candidate pre-events', {
+        const debugPayload: Record<string, unknown> = {
             count: candidates.length,
             preCompetitionId,
-            timeWindow: `${CONFIG.eventMatching.timeWindowMinutes} minutes`,
+            golfNameOnly: nameOnlyGolf,
             originalEventName: eventName,
-            normalizedEventName: normalizedEventName
-        });
+            normalizedEventName,
+        };
+        if (timeBounds) {
+            debugPayload.candidateMinTime = timeBounds.minTime.toISOString();
+            debugPayload.candidateMaxTime = timeBounds.maxTime.toISOString();
+            debugPayload.timeWindowMinutes = CONFIG.eventMatching.timeWindowMinutes;
+        }
+        logger.debug('Found candidate pre-events', debugPayload);
+
+        const providerGroupLabel =
+            providerCompetition?.competition_name || providerCompetition?.name || '';
+        const providerGolfLabel = this.combineGolfMatchLabel(providerGroupLabel, normalizedEventName);
 
         // Try to find match by event name similarity
         let bestMatch = null;
         let bestSimilarity = 0;
 
         for (const candidate of candidates) {
-            // Normalize candidate event name as well
             const normalizedCandidateName = await this.normalizeEventName(
                 candidate.name,
-                null, // We don't know the provider for pre-events, so try all mappings
+                null,
                 providerCompetition?.country_code,
                 trx
             );
 
-            const similarity = StringSimilarity.calculateSimilarity(
-                normalizedEventName.toLowerCase(),
-                normalizedCandidateName.toLowerCase()
-            );
+            let similarity: number;
+            if (nameOnlyGolf) {
+                const candidateGolfLabel = this.combineGolfMatchLabel(
+                    preGroupName,
+                    normalizedCandidateName
+                );
+                similarity = StringSimilarity.calculateSimilarity(
+                    this.titleForEventSimilarity(providerGolfLabel),
+                    this.titleForEventSimilarity(candidateGolfLabel)
+                );
+            } else {
+                similarity = StringSimilarity.calculateSimilarity(
+                    this.titleForEventSimilarity(normalizedEventName),
+                    this.titleForEventSimilarity(normalizedCandidateName)
+                );
+            }
 
             if (similarity > bestSimilarity && similarity >= CONFIG.eventMatching.nameSimilarity) {
                 bestMatch = candidate;

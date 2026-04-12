@@ -10,6 +10,11 @@ export interface CompetitionMatchingCriteria {
     requireDayMatch: boolean;
     matchField: 'venue_name' | 'competition_name' | 'name';
     conflictColumns: string[];
+    /**
+     * When true, competition matching uses all pre-groups for the sport (`findCandidatesForCurrentSport`)
+     * instead of the same-calendar-day query (`findCandidatesByDay`). For golf when provider `day` is unreliable.
+     */
+    skipDayFilterForCandidates?: boolean;
 }
 
 export interface EventMatchingCriteria {
@@ -18,6 +23,11 @@ export interface EventMatchingCriteria {
     distanceThreshold?: number;
     competitionMatch: boolean;
     participantOverlap: number;
+    /**
+     * Golf: match provider events to fs_pre_events using canonical group + event names only
+     * (no start_time window). Requires competition already matched to the same pre_event_group.
+     */
+    golfMatchEventsByNameOnly?: boolean;
 }
 
 export interface ParticipantMatchingCriteria {

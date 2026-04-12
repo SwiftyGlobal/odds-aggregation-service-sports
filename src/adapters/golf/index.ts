@@ -54,12 +54,19 @@ export const golfAdapter: SportAdapter = {
             requireDayMatch: true,
             matchField: 'name',
             conflictColumns: ['pre_sport_id', 'name', 'start_time'],
+            /** Provider `day` is derived from event starts (often Jan 1 vs May); do not gate candidates on it. */
+            skipDayFilterForCandidates: true,
         },
         event: {
             nameSimilarity: 0.8,
             timeWindowMinutes: 3,
             competitionMatch: true,
             participantOverlap: 0.6,
+            /**
+             * Provider start/end times are unreliable for majors; scope is already the matched
+             * pre_event_group, so match on canonical group name + event name only.
+             */
+            golfMatchEventsByNameOnly: true,
         },
         participant: {
             nameSimilarity: 0.85,
@@ -139,9 +146,9 @@ export const golfAdapter: SportAdapter = {
                 void mergeData;
             },
             applyPreEventEnrichmentFields({ existing, providerEvent, updates }) {
-                void existing;
-                void providerEvent;
-                void updates;
+                if (providerEvent.end_time && !existing.end_time) {
+                    updates.end_time = providerEvent.end_time;
+                }
             },
         },
         odds: {

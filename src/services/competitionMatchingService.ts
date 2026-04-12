@@ -142,17 +142,25 @@ export class CompetitionMatchingService {
             normalizedMatchValue = competitionName;
         }
 
-        const lockKey = `comp-${normalizedMatchValue.toLowerCase()}-${day}-${countryCode || 'null'}`;
+        const skipDayFilter = adapter.matching.competition.skipDayFilterForCandidates === true;
+        const lockKey = skipDayFilter
+            ? `comp-${normalizedMatchValue.toLowerCase()}-${countryCode || 'null'}`
+            : `comp-${normalizedMatchValue.toLowerCase()}-${day}-${countryCode || 'null'}`;
         const releaseCompetitionLock = await DbConcurrencyManager.acquirePreEventLock(lockKey);
 
         try {
-            // Query existing pre-competitions for same day
-            const candidates = await PreCompetitionRepository.findCandidatesByDay(
-                day,
-                countryCode,
-                adapter.matching.competition.requireCountryMatch,
-                trx
-            );
+            const candidates = skipDayFilter
+                ? await PreCompetitionRepository.findCandidatesForCurrentSport(
+                    countryCode,
+                    adapter.matching.competition.requireCountryMatch,
+                    trx
+                )
+                : await PreCompetitionRepository.findCandidatesByDay(
+                    day,
+                    countryCode,
+                    adapter.matching.competition.requireCountryMatch,
+                    trx
+                );
 
             logger.debug('Found candidate pre-competitions', {
                 count: candidates.length,
@@ -160,7 +168,8 @@ export class CompetitionMatchingService {
                 countryCode,
                 matchField,
                 matchValue: normalizedMatchValue,
-                viaMapping: !!venueMapping
+                viaMapping: !!venueMapping,
+                skipDayFilterForCandidates: skipDayFilter,
             });
 
             // Try to find match using the sport's match field

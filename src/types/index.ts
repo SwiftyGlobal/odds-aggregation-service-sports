@@ -89,6 +89,8 @@ export interface CompetitionMatchingCriteria {
     venueSimilarityThreshold: number; // 0-1, venue name similarity required
     requireCountryMatch: boolean; // Country code must match
     requireDayMatch: boolean; // Day must match
+    /** Golf: use sport-wide pre-group list instead of same-day `findCandidatesByDay`. */
+    skipDayFilterForCandidates?: boolean;
 }
 
 export interface EventMatchingCriteria {
@@ -97,6 +99,8 @@ export interface EventMatchingCriteria {
     distanceThreshold?: number; // for distance-based matching
     competitionMatch: boolean;
     participantOverlap: number; // minimum participant overlap ratio
+    /** Golf: name-only event matching (no time window). */
+    golfMatchEventsByNameOnly?: boolean;
 }
 
 export interface ParticipantMatchingCriteria {

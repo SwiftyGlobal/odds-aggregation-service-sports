@@ -10,8 +10,7 @@
 		"start": "tsx index.ts",
 		"start:showUsage": "tsx index.ts showUsage",
 		"sync:pre": "tsx index.ts sync:pre",
-		"health": "tsx index.ts health",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"health": "tsx index.ts health"
 	},
 	"dependencies": {
 		"axios": "^1.6.0",

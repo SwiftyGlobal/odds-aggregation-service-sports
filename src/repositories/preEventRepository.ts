@@ -78,7 +78,8 @@ export class PreEventRepository {
     }
 
     /**
-     * Find candidate pre-events for matching
+     * Find candidate pre-events for matching (same pre_event_group_id, start_time in [minTime, maxTime]).
+     * Caller supplies bounds (e.g. golf passes a multi-day window from provider start/end).
      */
     static async findCandidateEvents(
         preCompetitionId: number,
@@ -91,6 +92,17 @@ export class PreEventRepository {
             .where('pre_event_group_id', preCompetitionId)
             .whereBetween('start_time', [minTime, maxTime])
             .whereNot('status', 'completed'); // Not FINISHED
+    }
+
+    /** All schedulable pre-events in a canonical group (golf name-only matching, no time filter). */
+    static async findCandidateEventsInPreGroup(
+        preCompetitionId: number,
+        trx?: Knex.Transaction
+    ): Promise<any[]> {
+        const db = trx || this.db;
+        return await db(TABLES.PRE_EVENTS)
+            .where('pre_event_group_id', preCompetitionId)
+            .whereNot('status', 'completed');
     }
 
     /**
