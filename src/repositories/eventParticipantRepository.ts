@@ -22,12 +22,14 @@ function mapProviderEventEntryRow(row: Record<string, any> | undefined): any | n
     if (!row) return null;
     const meta = row.pp_metadata ?? row.metadata;
     const extraInfo = metadataToExtraInfoString(meta);
+    const ppRef = row.pp_participant_ref ?? row.participant_ref_id;
     return {
         ...row,
         id: row.id,
         provider_entry_id: row.id,
-        participant_ref_id: row.pp_participant_ref ?? row.participant_ref_id ?? row.entry_ref_id,
-        slug: row.slug ?? row.pp_participant_ref ?? row.participant_ref_id,
+        entry_ref_id: row.entry_ref_id,
+        participant_ref_id: ppRef,
+        slug: row.slug ?? ppRef,
         display_name:
             row.display_name ??
             row.pp_name ??

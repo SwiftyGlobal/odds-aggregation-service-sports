@@ -78,6 +78,8 @@ export class PreEventParticipantRepository {
             pre_event_id: number;
             pre_participant_id: number;
             provider_participant_ref_id: string;
+            /** Event-scoped provider entry key mirrored onto fs_pre_event_entries */
+            entry_ref_id?: string | null;
             draw_number?: number;
             display_name?: string;
             slug?: string;
@@ -143,6 +145,10 @@ export class PreEventParticipantRepository {
         if (data.finishing_position !== undefined) {
             insertData.finishing_position = data.finishing_position;
             mergeData.finishing_position = data.finishing_position;
+        }
+        if (data.entry_ref_id !== undefined && data.entry_ref_id !== null && String(data.entry_ref_id).trim() !== '') {
+            insertData.entry_ref_id = data.entry_ref_id;
+            mergeData.entry_ref_id = data.entry_ref_id;
         }
 
         adapter.hooks.participant.applyPreEventParticipantFields({

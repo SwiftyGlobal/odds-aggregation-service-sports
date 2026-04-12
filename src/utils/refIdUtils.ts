@@ -116,3 +116,17 @@ export function buildParticipantRefId(
 ): string {
     return `${eventRefId}.${slugify(participantName)}`;
 }
+
+/** Max length for fs_pre_event_entries.entry_ref_id (varchar 255). */
+export const PRE_EVENT_ENTRY_REF_ID_MAX_LEN = 255;
+
+/**
+ * Canonical `fs_pre_event_entries.entry_ref_id`: extends the pre-event ref with the runner segment,
+ * same dot-separated style as `fs_pre_events.event_ref_id` / `fs_pre_event_groups.group_ref_id`.
+ *
+ * Example: `GOLF.202605170900.UNK.uspga_championship` + Brooks Koepka ->
+ * `GOLF.202605170900.UNK.uspga_championship.brookskoepka`
+ */
+export function buildPreEventEntryRefId(eventRefId: string, participantDisplayOrName: string): string {
+    return buildParticipantRefId(eventRefId, participantDisplayOrName).slice(0, PRE_EVENT_ENTRY_REF_ID_MAX_LEN);
+}

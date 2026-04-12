@@ -12,7 +12,12 @@ import { EventParticipantRepository } from '../repositories/eventParticipantRepo
 import { PreEventParticipantRepository } from '../repositories/preEventParticipantRepository.js';
 import { EnsureService } from './ensureService.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
-import { buildParticipantRefId, extractParticipantName } from '../utils/refIdUtils.js';
+import {
+    buildParticipantRefId,
+    buildPreEventEntryRefId,
+    extractParticipantName,
+    slugify,
+} from '../utils/refIdUtils.js';
 import { PreEventCoverageService } from './preEventCoverageService.js';
 import { PreEventOutboxService } from './preEventOutboxService.js';
 import { OddsAggregationService } from './oddsAggregationService.js';
@@ -174,14 +179,33 @@ export class EventParticipantMatchingService {
             throw new Error(`pre_sport_id missing for pre_event_id=${preEventId}`);
         }
 
-        const canonicalRefId = (parentEvent?.event_ref_id && participantName)
-            ? buildParticipantRefId(parentEvent.event_ref_id, participantName)
-            : providerEventParticipant.participant_ref_id;
+        const adapter = getSportAdapter();
+        let canonicalRefId: string;
+        if (adapter.adapterKey === 'golf') {
+            const rawPp = providerEventParticipant.participant_ref_id;
+            canonicalRefId = rawPp?.trim()
+                ? PreEventParticipantRepository.truncateParticipantRefId(String(rawPp))
+                : PreEventParticipantRepository.truncateParticipantRefId(slugify(participantName) || 'unknown');
+        } else {
+            canonicalRefId = (parentEvent?.event_ref_id && participantName)
+                ? buildParticipantRefId(parentEvent.event_ref_id, participantName)
+                : PreEventParticipantRepository.truncateParticipantRefId(
+                    String(providerEventParticipant.participant_ref_id || slugify(participantName) || 'unknown')
+                );
+        }
 
         const displayName =
             providerEventParticipant.display_name ||
             providerEventParticipant.participant_ref_id ||
             canonicalRefId;
+
+        /** Canonical dot-separated ref aligned with fs_pre_events.event_ref_id, stored on fs_pre_event_entries */
+        const canonicalEntryRefId =
+            parentEvent?.event_ref_id && participantName
+                ? buildPreEventEntryRefId(parentEvent.event_ref_id, participantName)
+                : providerEventParticipant.entry_ref_id
+                    ? String(providerEventParticipant.entry_ref_id).slice(0, 255)
+                    : undefined;
 
         const preParticipantId = await PreEventParticipantRepository.ensurePreParticipant(
             preSportId,
@@ -235,6 +259,8 @@ export class EventParticipantMatchingService {
         const newMapping = {
             provider_id: providerEventParticipant.provider_id,
             participant_ref_id: providerEventParticipant.participant_ref_id,
+            provider_entry_ref_id: providerEventParticipant.entry_ref_id,
+            canonical_entry_ref_id: canonicalEntryRefId,
             matched_at: new Date().toISOString()
         };
 
@@ -295,15 +321,14 @@ export class EventParticipantMatchingService {
         // Always set silk_info (even if empty array) to ensure it's updated
         extraInfo.silk_info = silkInfo;
 
-        // Create or update pre-event-participant
-        // ref_id is auto-generated inside the repository from event ref_id + participant name
-        const adapter = getSportAdapter();
+        // Create or update pre-event-participant (golf: sport-scoped participant ref; entry_ref_id = aggregation-style event ref + slug)
         const participantData: any = {
             pre_event_id: preEventId,
             pre_participant_id: preParticipantId,
-            provider_participant_ref_id: providerEventParticipant.participant_ref_id,
+            provider_participant_ref_id: providerEventParticipant.participant_ref_id ?? canonicalRefId,
+            entry_ref_id: canonicalEntryRefId,
             display_name: providerEventParticipant.display_name,
-            slug: providerEventParticipant.participant_ref_id,
+            slug: canonicalRefId,
             position: providerEventParticipant.position,
             extra_info: JSON.stringify(extraInfo),
             // Propagate canonical-entry fields from provider layer -> pre layer.
