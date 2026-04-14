@@ -248,7 +248,10 @@ export class PreEventRepository {
     }
 
     /**
-     * Insert pre-event history record
+     * Insert pre-event history record.
+     *
+     * No-op for golf: event periods (rounds) are not yet sourced from provider APIs.
+     * Status tracking for the event itself is handled by updatePreEvent().
      */
     static async insertPreEventHistory(
         preEventId: number,

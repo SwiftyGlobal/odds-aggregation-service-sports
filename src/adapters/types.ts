@@ -43,6 +43,8 @@ export interface SportAdapterTables {
     PROVIDER_PARTICIPANTS: string;
     PROVIDER_COMPETITIONS: string;
     PROVIDER_EVENTS: string;
+    /** Provider event periods (e.g. golf rounds) */
+    PROVIDER_EVENT_PERIODS?: string;
     PROVIDER_MARKETS: string;
     PROVIDER_EVENT_PARTICIPANTS: string;
     PROVIDER_ODDS: string;
@@ -51,6 +53,8 @@ export interface SportAdapterTables {
 
     PRE_COMPETITIONS: string;
     PRE_EVENTS: string;
+    /** Canonical event periods (e.g. golf rounds) */
+    PRE_EVENT_PERIODS?: string;
     PRE_MARKETS: string;
     /** Canonical participants (e.g. fs_pre_participants) */
     PRE_PARTICIPANTS: string;
