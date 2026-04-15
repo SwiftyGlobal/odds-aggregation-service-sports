@@ -11,7 +11,7 @@ const adapter = getSportAdapter();
 export const CONFIG: AggregationConfig = {
     providers: adapter.providers,
 
-    competitionMatching: adapter.matching.competition,
+    eventGroupMatching: adapter.matching.eventGroup,
     eventMatching: adapter.matching.event,
     participantMatching: adapter.matching.participant,
 

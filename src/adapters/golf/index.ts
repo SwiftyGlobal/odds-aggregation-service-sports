@@ -13,13 +13,13 @@ export const golfAdapter: SportAdapter = {
     tables: {
         PROVIDER_SPORTS: 'fs_provider_sports',
         PROVIDER_PARTICIPANTS: 'fs_provider_participants',
-        PROVIDER_COMPETITIONS: 'fs_provider_event_groups',
+        PROVIDER_EVENT_GROUPS: 'fs_provider_event_groups',
         PROVIDER_EVENTS: 'fs_provider_events',
         PROVIDER_MARKETS: 'fs_provider_markets',
         PROVIDER_EVENT_PARTICIPANTS: 'fs_provider_event_entries',
         PROVIDER_ODDS: 'fs_provider_selections',
         PROVIDER_ODDS_HISTORY: 'fs_provider_selection_price_history',
-        PRE_COMPETITIONS: 'fs_pre_event_groups',
+        PRE_EVENT_GROUPS: 'fs_pre_event_groups',
         PRE_EVENTS: 'fs_pre_events',
         PRE_MARKETS: 'fs_pre_markets',
         PRE_PARTICIPANTS: 'fs_pre_participants',
@@ -48,7 +48,7 @@ export const golfAdapter: SportAdapter = {
         { id: 4, name: 'netbet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_NETBET_ENABLED') },
     ],
     matching: {
-        competition: {
+        eventGroup: {
             venueSimilarityThreshold: 0.85,
             requireCountryMatch: false,
             requireDayMatch: true,
@@ -60,7 +60,7 @@ export const golfAdapter: SportAdapter = {
         event: {
             nameSimilarity: 0.8,
             timeWindowMinutes: 3,
-            competitionMatch: true,
+            eventGroupMatch: true,
             participantOverlap: 0.6,
             /**
              * Provider start/end times are unreliable for majors; scope is already the matched

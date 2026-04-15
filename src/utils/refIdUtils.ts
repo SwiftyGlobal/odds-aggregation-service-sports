@@ -3,14 +3,14 @@
  * Generates stable, deterministic reference IDs for pre-layer entities.
  *
  * Format:
- *   competition:  HR.202603050000.USA.charles_town
+ *   event_group:  HR.202603050000.USA.charles_town
  *   event:        HR.202603051700.USA.charles_town
  *   participant:  HR.202603051700.USA.charles_town.senorita_jerico
  *
  * Components:
  *   - sport_code: from the canonical sports row (e.g. fs_pre_sports.sport_code 'GOLF', or racing fs_pre_horse_racing_sports.sport_code 'HR')
- *   - datetime:   YYYYMMDDHHMM (competitions use 0000 for time)
- *   - country:    country_code from fs_pre_horse_racing_competitions (e.g. 'USA')
+ *   - datetime:   YYYYMMDDHHMM (event groups use 0000 for time)
+ *   - country:    country_code from canonical pre event group row (e.g. 'USA')
  *   - venue:      slugified canonical venue_name (e.g. 'charles_town')
  *   - horse:      slugified participant display_name / slug (e.g. 'senorita_jerico')
  */
@@ -41,7 +41,7 @@ export function formatDateTime(date: Date): string {
 }
 
 /**
- * Format a date string (YYYY-MM-DD) to YYYYMMDD0000 (competition-level, no time).
+ * Format a date string (YYYY-MM-DD) to YYYYMMDD0000 (group-level, no time).
  */
 export function formatDateOnly(day: string): string {
     // day is "YYYY-MM-DD"
@@ -50,11 +50,11 @@ export function formatDateOnly(day: string): string {
 }
 
 /**
- * Build competition ref_id:
+ * Build canonical pre event group `group_ref_id`:
  *   Horse racing: HR.202603050000.USA.charles_town  (venue-based)
- *   Golf:         GOLF.202603250000.UNK.the_masters (competition-name-based)
+ *   Golf:         GOLF.202603250000.UNK.the_masters (name-based)
  */
-export function buildCompetitionRefId(
+export function buildEventGroupRefId(
     sportCode: string,
     day: string,
     countryCode: string | null,
@@ -68,6 +68,9 @@ export function buildCompetitionRefId(
     ];
     return parts.join('.');
 }
+
+/** @deprecated use `buildEventGroupRefId` */
+export const buildCompetitionRefId = buildEventGroupRefId;
 
 /**
  * Build event ref_id:

@@ -310,13 +310,21 @@ polling_rows_processed_total ${pollingStats.rowsProcessedTotal}
 # TYPE aggregation_events_processed_total counter
 aggregation_events_processed_total ${stats.eventsProcessed}
 
-# HELP aggregation_competitions_matched_total Total competitions matched
-# TYPE aggregation_competitions_matched_total counter
-aggregation_competitions_matched_total ${stats.competitionsMatched}
+# HELP aggregation_event_groups_matched_total Total canonical event groups matched
+# TYPE aggregation_event_groups_matched_total counter
+aggregation_event_groups_matched_total ${stats.eventGroupsMatched}
 
-# HELP aggregation_competitions_created_total Total competitions created
+# HELP aggregation_event_groups_created_total Total canonical event groups created
+# TYPE aggregation_event_groups_created_total counter
+aggregation_event_groups_created_total ${stats.eventGroupsCreated}
+
+# HELP aggregation_competitions_matched_total Deprecated alias for aggregation_event_groups_matched_total
+# TYPE aggregation_competitions_matched_total counter
+aggregation_competitions_matched_total ${stats.eventGroupsMatched}
+
+# HELP aggregation_competitions_created_total Deprecated alias for aggregation_event_groups_created_total
 # TYPE aggregation_competitions_created_total counter
-aggregation_competitions_created_total ${stats.competitionsCreated}
+aggregation_competitions_created_total ${stats.eventGroupsCreated}
 
 # HELP aggregation_participants_matched_total Total participants matched
 # TYPE aggregation_participants_matched_total counter
@@ -383,8 +391,8 @@ aggregation_processing_rate ${stats.processingRate.toFixed(4)}
             },
             processing: {
                 eventsProcessed: stats.eventsProcessed,
-                competitionsMatched: stats.competitionsMatched,
-                competitionsCreated: stats.competitionsCreated,
+                eventGroupsMatched: stats.eventGroupsMatched,
+                eventGroupsCreated: stats.eventGroupsCreated,
                 participantsMatched: stats.participantsMatched,
                 participantsCreated: stats.participantsCreated,
                 oddsAggregated: stats.oddsAggregated,

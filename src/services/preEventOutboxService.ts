@@ -6,7 +6,7 @@
 import { Knex } from 'knex';
 import { logger } from '../utils/logger.js';
 import { PreEventRepository } from '../repositories/preEventRepository.js';
-import { PreCompetitionRepository } from '../repositories/preCompetitionRepository.js';
+import { PreEventGroupRepository } from '../repositories/preEventGroupRepository.js';
 import { PreEventParticipantRepository } from '../repositories/preEventParticipantRepository.js';
 import { PreOddsRepository } from '../repositories/preOddsRepository.js';
 import { EventParticipantRepository } from '../repositories/eventParticipantRepository.js';
@@ -72,8 +72,9 @@ export class PreEventOutboxService {
             return;
         }
 
-        const preCompetition = preEvent.event_group_id
-            ? await PreCompetitionRepository.getPreCompetition(preEvent.event_group_id, trx)
+        const gid = preEvent.pre_event_group_id ?? preEvent.pre_competition_id;
+        const preEventGroup = gid
+            ? await PreEventGroupRepository.getPreEventGroup(gid, trx)
             : null;
 
         const participants = await PreEventParticipantRepository.getByPreEventId(preEventId, trx);
@@ -84,7 +85,7 @@ export class PreEventOutboxService {
                 ...preEvent,
                 event_snapshot_sent_at: snapshot.event_snapshot_sent_at
             },
-            preCompetition,
+            preEventGroup,
             participants,
             version: snapshot.event_snapshot_version
         });

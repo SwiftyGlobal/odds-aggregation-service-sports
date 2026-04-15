@@ -134,10 +134,10 @@ export class EventMatcher {
         score += timeScore * 0.3; // 30% weight
         factors += 0.3;
 
-        // Competition match (if required)
-        if (this.criteria.competitionMatch && preEvent.competitionId && providerEvent.preCompetitionId) {
-            const competitionMatch = preEvent.competitionId === providerEvent.preCompetitionId ? 1 : 0;
-            score += competitionMatch * 0.1; // 10% weight
+        // Event group match (if required)
+        if (this.criteria.eventGroupMatch && preEvent.preEventGroupId && providerEvent.preEventGroupId) {
+            const eventGroupMatch = preEvent.preEventGroupId === providerEvent.preEventGroupId ? 1 : 0;
+            score += eventGroupMatch * 0.1; // 10% weight
             factors += 0.1;
         }
 
@@ -167,8 +167,8 @@ export class EventMatcher {
             confidence += 0.05;
         }
 
-        // Boost confidence for same competition
-        if (preEvent.competitionId === providerEvent.preCompetitionId) {
+        // Boost confidence for same canonical event group
+        if (preEvent.preEventGroupId === providerEvent.preEventGroupId) {
             confidence += 0.1;
         }
 
@@ -233,8 +233,8 @@ export class EventMatcher {
             fields.push('time');
         }
 
-        if (preEvent.competitionId === providerEvent.preCompetitionId) {
-            fields.push('competition');
+        if (preEvent.preEventGroupId === providerEvent.preEventGroupId) {
+            fields.push('event_group');
         }
 
         return fields;

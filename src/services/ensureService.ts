@@ -6,65 +6,62 @@
 
 import { KnexClient } from '../config/knex.js';
 import { logger } from '../utils/logger.js';
-import { CompetitionRepository } from '../repositories/competitionRepository.js';
+import { ProviderEventGroupRepository } from '../repositories/providerEventGroupRepository.js';
 import { EventRepository } from '../repositories/eventRepository.js';
-import { CompetitionMatchingService } from './competitionMatchingService.js';
+import { EventGroupMatchingService } from './eventGroupMatchingService.js';
 import { EventMatchingService } from './eventMatchingService.js';
 import { Knex } from 'knex';
 
 export class EnsureService {
     /**
-     * Ensure competition is matched (idempotent)
-     * Returns existing pre_competition_id if already matched, otherwise matches and returns new id
+     * Ensure provider event group is linked to a canonical pre event group (idempotent).
      */
-    static async ensurePreCompetitionFromProvider(
-        providerCompetitionId: number,
+    static async ensurePreEventGroupFromProvider(
+        providerEventGroupId: number,
         trx?: Knex.Transaction
     ): Promise<number> {
         const execute = async (transaction: any) => {
-            // Get provider competition
-            const providerCompetition = await CompetitionRepository.getProviderCompetition(
-                providerCompetitionId,
+            const providerGroup = await ProviderEventGroupRepository.getProviderEventGroup(
+                providerEventGroupId,
                 transaction
             );
 
-            if (!providerCompetition) {
-                throw new Error(`Provider competition not found: ${providerCompetitionId}`);
+            if (!providerGroup) {
+                throw new Error(`Provider event group not found: ${providerEventGroupId}`);
             }
 
-            // If already matched, return existing pre_competition_id
-            if (providerCompetition.pre_competition_id) {
-                logger.debug('Competition already matched', {
-                    providerCompetitionId,
-                    preCompetitionId: providerCompetition.pre_competition_id
+            const linked =
+                providerGroup.pre_event_group_id ?? providerGroup.pre_competition_id;
+            if (linked) {
+                logger.debug('Event group already matched', {
+                    providerEventGroupId,
+                    preEventGroupId: linked
                 });
-                return providerCompetition.pre_competition_id;
+                return linked;
             }
 
-            // Match or create pre-competition
-            logger.info('Ensuring competition is matched', {
-                providerCompetitionId,
-                competitionName: providerCompetition.competition_name
+            logger.info('Ensuring event group is matched', {
+                providerEventGroupId,
+                name: providerGroup.competition_name
             });
 
-            const preCompetitionId = await CompetitionMatchingService.findOrCreatePreCompetition(
-                providerCompetition,
+            const preEventGroupId = await EventGroupMatchingService.findOrCreatePreEventGroup(
+                providerGroup,
                 transaction
             );
 
-            // Update provider competition with pre_competition_id
-            await CompetitionRepository.updatePreCompetitionId(
-                providerCompetitionId,
-                preCompetitionId,
+            await ProviderEventGroupRepository.updatePreEventGroupId(
+                providerEventGroupId,
+                preEventGroupId,
                 transaction
             );
 
-            logger.info('Competition matched via ensure', {
-                providerCompetitionId,
-                preCompetitionId
+            logger.info('Event group matched via ensure', {
+                providerEventGroupId,
+                preEventGroupId
             });
 
-            return preCompetitionId;
+            return preEventGroupId;
         };
 
         if (trx) {
@@ -76,15 +73,13 @@ export class EnsureService {
 
     /**
      * Ensure event is matched (idempotent)
-     * Ensures competition is matched first, then matches event
-     * Returns existing pre_event_id if already matched, otherwise matches and returns new id
+     * Ensures provider event group is matched first, then matches event
      */
     static async ensurePreEventFromProvider(
         providerEventId: number,
         trx?: Knex.Transaction
     ): Promise<number> {
         const execute = async (transaction: any) => {
-            // Get provider event
             const providerEvent = await EventRepository.getProviderEvent(
                 providerEventId,
                 transaction
@@ -94,7 +89,6 @@ export class EnsureService {
                 throw new Error(`Provider event not found: ${providerEventId}`);
             }
 
-            // If already matched, return existing pre_event_id
             if (providerEvent.pre_event_id) {
                 logger.debug('Event already matched', {
                     providerEventId,
@@ -103,30 +97,29 @@ export class EnsureService {
                 return providerEvent.pre_event_id;
             }
 
-            // Ensure competition is matched first
-            if (!providerEvent.provider_competition_id) {
-                throw new Error(`Event has no provider_competition_id: ${providerEventId}`);
+            const providerEventGroupId =
+                providerEvent.provider_event_group_id ?? providerEvent.provider_competition_id;
+            if (!providerEventGroupId) {
+                throw new Error(`Event has no provider_event_group_id: ${providerEventId}`);
             }
 
-            const preCompetitionId = await this.ensurePreCompetitionFromProvider(
-                providerEvent.provider_competition_id,
+            const preEventGroupId = await this.ensurePreEventGroupFromProvider(
+                providerEventGroupId,
                 transaction
             );
 
-            // Match or create pre-event
             logger.info('Ensuring event is matched', {
                 providerEventId,
                 eventName: providerEvent.name,
-                preCompetitionId
+                preEventGroupId
             });
 
             const preEventId = await EventMatchingService.findOrCreatePreEvent(
                 providerEvent,
-                preCompetitionId,
+                preEventGroupId,
                 transaction
             );
 
-            // Update provider event with pre_event_id
             await EventRepository.updatePreEventId(
                 providerEventId,
                 preEventId,
@@ -136,7 +129,7 @@ export class EnsureService {
             logger.info('Event matched via ensure', {
                 providerEventId,
                 preEventId,
-                preCompetitionId
+                preEventGroupId
             });
 
             return preEventId;
@@ -149,4 +142,3 @@ export class EnsureService {
         }
     }
 }
-

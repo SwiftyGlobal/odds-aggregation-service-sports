@@ -21,6 +21,7 @@ export class EventRepository {
         return {
             ...row,
             status,
+            provider_event_group_id: row.provider_event_group_id ?? row.provider_competition_id,
             provider_competition_id: row.provider_competition_id ?? row.provider_event_group_id,
             event_status_id: row.event_status_id ?? this.statusToLegacyId(status),
             name: row.name ?? row.event_name,

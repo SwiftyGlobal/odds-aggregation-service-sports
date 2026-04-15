@@ -82,26 +82,26 @@ export class PreEventRepository {
      * Caller supplies bounds (e.g. golf passes a multi-day window from provider start/end).
      */
     static async findCandidateEvents(
-        preCompetitionId: number,
+        preEventGroupId: number,
         minTime: Date,
         maxTime: Date,
         trx?: Knex.Transaction
     ): Promise<any[]> {
         const db = trx || this.db;
         return await db(TABLES.PRE_EVENTS)
-            .where('pre_event_group_id', preCompetitionId)
+            .where('pre_event_group_id', preEventGroupId)
             .whereBetween('start_time', [minTime, maxTime])
             .whereNot('status', 'completed'); // Not FINISHED
     }
 
     /** All schedulable pre-events in a canonical group (golf name-only matching, no time filter). */
     static async findCandidateEventsInPreGroup(
-        preCompetitionId: number,
+        preEventGroupId: number,
         trx?: Knex.Transaction
     ): Promise<any[]> {
         const db = trx || this.db;
         return await db(TABLES.PRE_EVENTS)
-            .where('pre_event_group_id', preCompetitionId)
+            .where('pre_event_group_id', preEventGroupId)
             .whereNot('status', 'completed');
     }
 
@@ -111,7 +111,7 @@ export class PreEventRepository {
     static async createOrUpdatePreEvent(
         data: {
             name: string;
-            pre_competition_id: number;
+            pre_event_group_id: number;
             start_time: Date;
             event_status_id?: number;
             ew_place?: number | null;
@@ -126,7 +126,7 @@ export class PreEventRepository {
 
         // Check if this pre-event already exists
         const existing = await db(TABLES.PRE_EVENTS)
-            .where('pre_event_group_id', data.pre_competition_id)
+            .where('pre_event_group_id', data.pre_event_group_id)
             .where('start_time', data.start_time)
             .select('id')
             .first();
@@ -141,22 +141,20 @@ export class PreEventRepository {
         const initialStatusId = data.event_status_id || firstEventStatusId;
 
         const adapter = getSportAdapter();
-        const identifyingField = adapter.matching.competition.matchField;
+        const identifyingField = adapter.matching.eventGroup.matchField;
 
         // Generate stable ref_id using the adapter's identifying field
-        // Horse racing: HR.202603051700.USA.charles_town (venue_name)
-        // Golf: GOLF.202601010000.UNK.valero_texas_open (competition_name)
-        const competition = await db(TABLES.PRE_COMPETITIONS)
-            .where('id', data.pre_competition_id)
+        const preGroup = await db(TABLES.PRE_EVENT_GROUPS)
+            .where('id', data.pre_event_group_id)
             .select('country_code', identifyingField)
             .first();
 
-        const refId = competition
+        const refId = preGroup
             ? buildEventRefId(
                 SPORT_CODES.CURRENT_SPORT,
                 data.start_time,
-                competition.country_code,
-                competition[identifyingField]
+                preGroup.country_code,
+                preGroup[identifyingField]
             )
             : null;
 
@@ -165,7 +163,7 @@ export class PreEventRepository {
             pre_sport_id: adapter.sport.id,
             event_ref_id: refId,
             name: data.name,
-            pre_event_group_id: data.pre_competition_id,
+            pre_event_group_id: data.pre_event_group_id,
             start_time: data.start_time,
             status: this.statusIdToString(initialStatusId),
             metadata: {
@@ -226,8 +224,8 @@ export class PreEventRepository {
         return {
             ...row,
             event_status_id: row.event_status_id ?? this.statusStringToId(row.status),
+            pre_event_group_id: row.pre_event_group_id ?? row.pre_competition_id,
             pre_competition_id: row.pre_competition_id ?? row.pre_event_group_id,
-            event_group_id: row.pre_event_group_id,
         };
     }
 

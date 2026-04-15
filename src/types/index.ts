@@ -85,7 +85,7 @@ export interface SyncStats {
     lastSync: Date;
 }
 
-export interface CompetitionMatchingCriteria {
+export interface EventGroupMatchingCriteria {
     venueSimilarityThreshold: number; // 0-1, venue name similarity required
     requireCountryMatch: boolean; // Country code must match
     requireDayMatch: boolean; // Day must match
@@ -97,7 +97,7 @@ export interface EventMatchingCriteria {
     nameSimilarity: number; // 0-1
     timeWindowMinutes: number; // minutes (configurable)
     distanceThreshold?: number; // for distance-based matching
-    competitionMatch: boolean;
+    eventGroupMatch: boolean;
     participantOverlap: number; // minimum participant overlap ratio
     /** Golf: name-only event matching (no time window). */
     golfMatchEventsByNameOnly?: boolean;
@@ -112,7 +112,7 @@ export interface ParticipantMatchingCriteria {
 
 export interface AggregationConfig {
     providers: ProviderConfig[];
-    competitionMatching: CompetitionMatchingCriteria;
+    eventGroupMatching: EventGroupMatchingCriteria;
     eventMatching: EventMatchingCriteria;
     participantMatching: ParticipantMatchingCriteria;
     oddsCalculation: {
@@ -154,7 +154,7 @@ export interface PreEvent {
     eventName: string;
     eventStateId: number;
     sportId: number;
-    competitionId: number;
+    preEventGroupId: number;
     eventStartTime: Date;
     eventActualStartTime?: Date;
     eventEndTime?: Date;
@@ -233,7 +233,7 @@ export interface ProviderEvent {
     handicap?: boolean;         // Horse-racing only
     distance?: string;          // Horse-racing only
     dividendInfo?: any;
-    preCompetitionId?: number;
+    preEventGroupId?: number;
     providerId: number;
     autoSync?: boolean;
     syncManually?: boolean;

@@ -6,7 +6,7 @@
 
 import { logger } from '../utils/logger.js';
 import { TABLES } from '../constants/tables.js';
-import { CompetitionMatchingService } from './competitionMatchingService.js';
+import { EventGroupMatchingService } from './eventGroupMatchingService.js';
 import { EventMatchingService } from './eventMatchingService.js';
 import { EventParticipantMatchingService } from './eventParticipantMatchingService.js';
 import { MarketMatchingService } from './marketMatchingService.js';
@@ -49,8 +49,8 @@ export class PollingChangeProcessor {
         }
 
         try {
-            if (table === TABLES.PROVIDER_COMPETITIONS) {
-                await this.processCompetition(rowId, pollCycleId);
+            if (table === TABLES.PROVIDER_EVENT_GROUPS) {
+                await this.processProviderEventGroup(rowId, pollCycleId);
             } else if (table === TABLES.PROVIDER_EVENTS) {
                 await this.processEvent(row, isNew, pollCycleId);
             } else if (table === TABLES.PROVIDER_EVENT_PARTICIPANTS) {
@@ -73,10 +73,10 @@ export class PollingChangeProcessor {
     }
 
     /**
-     * COMPETITIONS - Always match (same behavior for new and updated)
+     * Provider event groups — always attempt match (same behavior for new and updated)
      */
-    private static async processCompetition(rowId: number, pollCycleId: string): Promise<void> {
-        await CompetitionMatchingService.processCompetitionChange(rowId, pollCycleId);
+    private static async processProviderEventGroup(rowId: number, pollCycleId: string): Promise<void> {
+        await EventGroupMatchingService.processProviderEventGroupChange(rowId, pollCycleId);
     }
 
     /**

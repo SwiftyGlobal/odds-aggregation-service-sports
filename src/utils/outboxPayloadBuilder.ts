@@ -59,11 +59,15 @@ export const buildPreOddsDeltaPayload = (params: {
 
 export const buildPreEventFullPayload = (params: {
     preEvent: any;
-    preCompetition?: any | null;
+    preEventGroup?: any | null;
     participants: any[];
     version: number;
 }): Record<string, any> => {
-    const { preEvent, preCompetition, participants, version } = params;
+    const { preEvent, preEventGroup, participants, version } = params;
+
+    const groupMeta = parseJson(preEventGroup?.metadata, {});
+    const venueFromGroup =
+        preEventGroup?.venue_name ?? (groupMeta as { venue_name?: string }).venue_name ?? null;
 
     const displayDividendInfo = parseJson(preEvent?.display_dividend_info, null);
 
@@ -90,8 +94,8 @@ export const buildPreEventFullPayload = (params: {
         end_time: toIso(preEvent?.end_time),
         status: preEvent?.status ?? null,
         event_status_id: preEvent?.event_status_id ?? null,
-        venue: preCompetition?.venue_name ?? null,
-        country_code: preCompetition?.country_code ?? null,
+        venue: venueFromGroup,
+        country_code: preEventGroup?.country_code ?? null,
         ew_place: preEvent?.ew_place ?? null,
         ew_price: preEvent?.ew_price ?? null,
         display_dividend_info: displayDividendInfo,

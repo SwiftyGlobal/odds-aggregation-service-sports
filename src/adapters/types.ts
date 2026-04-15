@@ -4,14 +4,14 @@ export interface ProviderConfig {
     includeInHealthCheck: boolean;
 }
 
-export interface CompetitionMatchingCriteria {
+export interface EventGroupMatchingCriteria {
     venueSimilarityThreshold: number;
     requireCountryMatch: boolean;
     requireDayMatch: boolean;
     matchField: 'venue_name' | 'competition_name' | 'name';
     conflictColumns: string[];
     /**
-     * When true, competition matching uses all pre-groups for the sport (`findCandidatesForCurrentSport`)
+     * When true, event-group matching uses all pre-groups for the sport (`findCandidatesForCurrentSport`)
      * instead of the same-calendar-day query (`findCandidatesByDay`). For golf when provider `day` is unreliable.
      */
     skipDayFilterForCandidates?: boolean;
@@ -21,11 +21,11 @@ export interface EventMatchingCriteria {
     nameSimilarity: number;
     timeWindowMinutes: number;
     distanceThreshold?: number;
-    competitionMatch: boolean;
+    eventGroupMatch: boolean;
     participantOverlap: number;
     /**
      * Golf: match provider events to fs_pre_events using canonical group + event names only
-     * (no start_time window). Requires competition already matched to the same pre_event_group.
+     * (no start_time window). Requires provider event group already matched to the same pre_event_group.
      */
     golfMatchEventsByNameOnly?: boolean;
 }
@@ -41,7 +41,7 @@ export interface SportAdapterTables {
     PROVIDER_SPORTS: string;
     /** Raw provider identity rows (e.g. fs_provider_participants) */
     PROVIDER_PARTICIPANTS: string;
-    PROVIDER_COMPETITIONS: string;
+    PROVIDER_EVENT_GROUPS: string;
     PROVIDER_EVENTS: string;
     /** Provider event periods (e.g. golf rounds) */
     PROVIDER_EVENT_PERIODS?: string;
@@ -51,7 +51,7 @@ export interface SportAdapterTables {
     /** Append-only provider odds history (generic `fs_provider_*_odds_history` name) */
     PROVIDER_ODDS_HISTORY?: string;
 
-    PRE_COMPETITIONS: string;
+    PRE_EVENT_GROUPS: string;
     PRE_EVENTS: string;
     /** Canonical event periods (e.g. golf rounds) */
     PRE_EVENT_PERIODS?: string;
@@ -183,7 +183,7 @@ export interface SportAdapter {
     polling: SportAdapterPolling;
     providers: ProviderConfig[];
     matching: {
-        competition: CompetitionMatchingCriteria;
+        eventGroup: EventGroupMatchingCriteria;
         event: EventMatchingCriteria;
         participant: ParticipantMatchingCriteria;
     };
