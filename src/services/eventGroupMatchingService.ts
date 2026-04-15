@@ -11,6 +11,7 @@ import { ProviderEventGroupRepository } from '../repositories/providerEventGroup
 import { PreEventGroupRepository } from '../repositories/preEventGroupRepository.js';
 import { VenueNameMapRepository } from '../repositories/venueNameMapRepository.js';
 import { getSportAdapter } from '../adapters/index.js';
+import { normalizeGolfEventTitleForMatching } from '../utils/golfEventTitleNormalize.js';
 
 export class EventGroupMatchingService {
     /**
@@ -117,9 +118,15 @@ export class EventGroupMatchingService {
         }
 
         const skipDayFilter = adapter.matching.eventGroup.skipDayFilterForCandidates === true;
+        const golfNameCompare =
+            adapter.adapterKey === 'golf' && matchField === 'name' && !venueMapping;
+        const lockNameSegment =
+            golfNameCompare && groupName
+                ? normalizeGolfEventTitleForMatching(groupName)
+                : normalizedMatchValue.toLowerCase();
         const lockKey = skipDayFilter
-            ? `peg-${normalizedMatchValue.toLowerCase()}-${countryCode || 'null'}`
-            : `peg-${normalizedMatchValue.toLowerCase()}-${day}-${countryCode || 'null'}`;
+            ? `peg-${lockNameSegment}-${countryCode || 'null'}`
+            : `peg-${lockNameSegment}-${day}-${countryCode || 'null'}`;
         const releaseLock = await DbConcurrencyManager.acquirePreEventLock(lockKey);
 
         try {
@@ -158,10 +165,22 @@ export class EventGroupMatchingService {
                     break;
                 }
 
-                const similarity = StringSimilarity.calculateSimilarity(
-                    normalizedMatchValue.toLowerCase(),
-                    candidateValue.toLowerCase()
-                );
+                let similarity: number;
+                if (golfNameCompare) {
+                    const a = normalizeGolfEventTitleForMatching(normalizedMatchValue);
+                    const b = normalizeGolfEventTitleForMatching(candidateValue);
+                    if (a === b) {
+                        bestMatch = candidate;
+                        bestSimilarity = 1.0;
+                        break;
+                    }
+                    similarity = StringSimilarity.calculateSimilarity(a, b);
+                } else {
+                    similarity = StringSimilarity.calculateSimilarity(
+                        normalizedMatchValue.toLowerCase(),
+                        candidateValue.toLowerCase()
+                    );
+                }
 
                 if (similarity > bestSimilarity && similarity >= adapter.matching.eventGroup.venueSimilarityThreshold) {
                     bestMatch = candidate;

@@ -11,7 +11,6 @@ import { EVENT_STATUS_IDS } from '../constants/status.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { ProviderEventGroupRepository } from '../repositories/providerEventGroupRepository.js';
 import { PreEventRepository } from '../repositories/preEventRepository.js';
-import { PreEventGroupRepository } from '../repositories/preEventGroupRepository.js';
 import { VenueNameMapRepository } from '../repositories/venueNameMapRepository.js';
 import { EnsureService } from './ensureService.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
@@ -45,27 +44,23 @@ export class EventMatchingService {
         };
     }
 
-    private static combineGolfMatchLabel(groupName: string, eventName: string): string {
-        return `${(groupName || '').trim()} ${(eventName || '').trim()}`.trim();
-    }
-
-    private static golfEventMatchLockKey(
-        preEventGroupId: number,
-        providerGroupName: string,
-        eventName: string
-    ): string {
-        const bundle = this.combineGolfMatchLabel(providerGroupName, eventName);
+    /**
+     * Serialize golf event matching on canonical normalized title only.
+     * Using provider group + event (or group+event concat) would split locks across
+     * providers when competition strings differ despite the same pre_event_group.
+     */
+    private static golfEventMatchLockKey(preEventGroupId: number, eventName: string): string {
         const slug =
-            slugify(this.titleForEventSimilarity(bundle)).slice(0, 120) || 'unknown';
+            slugify(this.titleForEventSimilarity(eventName)).slice(0, 120) || 'unknown';
         return `pre-${preEventGroupId}-${slug}`;
     }
 
     private static titleForEventSimilarity(name: string): string {
-        const lower = (name || '').toLowerCase();
+        const raw = name || '';
         if (getSportAdapter().adapterKey === 'golf') {
-            return normalizeGolfEventTitleForMatching(lower);
+            return normalizeGolfEventTitleForMatching(raw);
         }
-        return lower;
+        return raw.toLowerCase();
     }
 
     /**
@@ -149,14 +144,8 @@ export class EventMatchingService {
             // Serialize so concurrent providers don't create duplicate pre_events for the same fixture.
             let preEventLockKey: string;
             if (this.isGolfNameOnlyEventMatch()) {
-                const pc = await ProviderEventGroupRepository.getProviderEventGroup(
-                    providerEventGroupId,
-                    transaction
-                );
-                const groupName = pc?.competition_name || pc?.name || '';
                 preEventLockKey = this.golfEventMatchLockKey(
                     preEventGroupId,
-                    groupName,
                     providerEvent.name || ''
                 );
             } else {
@@ -226,9 +215,6 @@ export class EventMatchingService {
             ? await ProviderEventGroupRepository.getProviderEventGroup(providerEventGroupId, trx)
             : null;
 
-        const preGroup = await PreEventGroupRepository.getPreEventGroup(preEventGroupId, trx);
-        const preGroupName = (preGroup?.name as string) || '';
-
         // Normalize event name by replacing venue name with canonical name if mapping exists
         const normalizedEventName = await this.normalizeEventName(
             eventName,
@@ -265,10 +251,6 @@ export class EventMatchingService {
         }
         logger.debug('Found candidate pre-events', debugPayload);
 
-        const providerGroupLabel =
-            providerGroup?.competition_name || providerGroup?.name || '';
-        const providerGolfLabel = this.combineGolfMatchLabel(providerGroupLabel, normalizedEventName);
-
         // Try to find match by event name similarity
         let bestMatch = null;
         let bestSimilarity = 0;
@@ -283,13 +265,12 @@ export class EventMatchingService {
 
             let similarity: number;
             if (nameOnlyGolf) {
-                const candidateGolfLabel = this.combineGolfMatchLabel(
-                    preGroupName,
-                    normalizedCandidateName
-                );
+                // Candidates are already scoped to pre_event_group_id. Comparing combined
+                // provider_group + event vs pre_group + candidate was asymmetric (each
+                // provider's competition_name differs) and broke sponsor vs short titles.
                 similarity = StringSimilarity.calculateSimilarity(
-                    this.titleForEventSimilarity(providerGolfLabel),
-                    this.titleForEventSimilarity(candidateGolfLabel)
+                    this.titleForEventSimilarity(normalizedEventName),
+                    this.titleForEventSimilarity(normalizedCandidateName)
                 );
             } else {
                 similarity = StringSimilarity.calculateSimilarity(
