@@ -171,6 +171,7 @@ export class PreEventRepository {
                 ew_price: data.ew_price || null,
                 dividend_info: sanitizedDividendInfo ? JSON.parse(sanitizedDividendInfo) : null,
             },
+            monitoring_started_at: new Date(),
             last_changed_at: new Date(),
             created_at: new Date(),
             updated_at: new Date()
@@ -237,11 +238,19 @@ export class PreEventRepository {
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<{ event_snapshot_version: number; event_snapshot_sent_at: Date }> {
-        void preEventId;
-        void trx;
+        const now = new Date();
+        const [row] = await trx(TABLES.PRE_EVENTS)
+            .where('id', preEventId)
+            .update({
+                event_snapshot_version: trx.raw('COALESCE(event_snapshot_version, 0) + 1'),
+                event_snapshot_sent_at: now,
+                updated_at: now,
+            })
+            .returning(['event_snapshot_version', 'event_snapshot_sent_at']);
+
         return {
-            event_snapshot_version: 1,
-            event_snapshot_sent_at: new Date()
+            event_snapshot_version: row.event_snapshot_version,
+            event_snapshot_sent_at: row.event_snapshot_sent_at,
         };
     }
 
@@ -288,8 +297,7 @@ export class PreEventRepository {
         delete updatePayload.ew_place;
         delete updatePayload.ew_price;
         delete updatePayload.dividend_info;
-        delete updatePayload.monitoring_started_at;
-        delete updatePayload.monitoring_ended_at;
+        // Coverage arrays not persisted at event level on sports schema (computed only).
         delete updatePayload.identity_matched_provider_ids;
         delete updatePayload.eligible_odds_provider_ids;
         delete updatePayload.fixed_odds_available_provider_ids;
@@ -303,6 +311,7 @@ export class PreEventRepository {
             .where('id', preEventId)
             .update({
                 ...updatePayload,
+                version: db.raw('COALESCE(version, 0) + 1'),
                 last_changed_at: new Date(),
                 updated_at: new Date()
             });
@@ -332,8 +341,7 @@ export class PreEventRepository {
         delete sanitizedUpdates.event_status_id;
         delete sanitizedUpdates.ew_place;
         delete sanitizedUpdates.ew_price;
-        delete sanitizedUpdates.monitoring_started_at;
-        delete sanitizedUpdates.monitoring_ended_at;
+        // Coverage arrays not persisted at event level on sports schema (computed only).
         delete sanitizedUpdates.identity_matched_provider_ids;
         delete sanitizedUpdates.eligible_odds_provider_ids;
         delete sanitizedUpdates.fixed_odds_available_provider_ids;
@@ -354,6 +362,7 @@ export class PreEventRepository {
         // Ensure updated_at is set
         sanitizedUpdates.updated_at = new Date();
         sanitizedUpdates.last_changed_at = new Date();
+        sanitizedUpdates.version = db.raw('COALESCE(version, 0) + 1');
 
         await db(TABLES.PRE_EVENTS)
             .where('id', preEventId)
@@ -391,17 +400,10 @@ export class PreEventRepository {
         preEventId: number,
         coverageData: {
             linkedProviderIds: number[];
-            identityMatchedProviderIds: number[];
-            eligibleOddsProviderIds: number[];
-            fixedOddsAvailableProviderIds: number[];
         },
         trx: Knex.Transaction
     ): Promise<void> {
-        // Compute counts (must equal array lengths)
         const linkedProviderCount = coverageData.linkedProviderIds.length;
-        void coverageData.identityMatchedProviderIds;
-        void coverageData.eligibleOddsProviderIds;
-        void coverageData.fixedOddsAvailableProviderIds;
 
         // Format arrays as PostgreSQL array literals
         const formatArray = (arr: number[]): string => {
@@ -414,6 +416,7 @@ export class PreEventRepository {
             .update({
                 linked_provider_ids: trx.raw('?::int[]', [formatArray(coverageData.linkedProviderIds)]),
                 linked_provider_count: linkedProviderCount,
+                version: trx.raw('COALESCE(version, 0) + 1'),
                 last_changed_at: trx.fn.now(),
                 updated_at: trx.fn.now()
             });
@@ -479,6 +482,7 @@ export class PreEventRepository {
             .where('id', preEventId)
             .update({
                 metadata,
+                version: trx.raw('COALESCE(version, 0) + 1'),
                 last_changed_at: new Date(),
                 updated_at: new Date()
             });
@@ -506,6 +510,7 @@ export class PreEventRepository {
             .where('id', preEventId)
             .update({
                 metadata,
+                version: trx.raw('COALESCE(version, 0) + 1'),
                 last_changed_at: new Date(),
                 updated_at: new Date()
             });
@@ -522,15 +527,21 @@ export class PreEventRepository {
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<boolean> {
-        void preEventId;
-        void trx;
-        return false;
+        const now = new Date();
+        const result = await trx(TABLES.PRE_EVENTS)
+            .where('id', preEventId)
+            .whereNull('monitoring_started_at')
+            .update({
+                monitoring_started_at: now,
+                updated_at: now,
+            });
+        return result > 0;
     }
 
     /**
      * Update monitoring_ended_at
      * Only sets if currently null or new value is later than existing
-     * 
+     *
      * @param preEventId - The pre-event ID
      * @param endedAt - The monitoring end timestamp
      * @param trx - Transaction (required)
@@ -541,10 +552,16 @@ export class PreEventRepository {
         endedAt: Date,
         trx: Knex.Transaction
     ): Promise<boolean> {
-        void preEventId;
-        void endedAt;
-        void trx;
-        return false;
+        const result = await trx(TABLES.PRE_EVENTS)
+            .where('id', preEventId)
+            .where((qb) => {
+                qb.whereNull('monitoring_ended_at').orWhere('monitoring_ended_at', '<', endedAt);
+            })
+            .update({
+                monitoring_ended_at: endedAt,
+                updated_at: new Date(),
+            });
+        return result > 0;
     }
 
     /**

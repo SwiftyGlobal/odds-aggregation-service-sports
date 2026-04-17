@@ -15,8 +15,10 @@
 import { Knex } from 'knex';
 import { logger } from '../utils/logger.js';
 import { getSportAdapter } from '../adapters/index.js';
+import { PreEventRepository } from '../repositories/preEventRepository.js';
+import { EVENT_STATUS_IDS } from '../constants/status.js';
 
-function projectionEnabled(): boolean {
+function dividendProjectionEnabled(): boolean {
     return getSportAdapter().hooks.projection.supportsDividendInfo();
 }
 
@@ -26,7 +28,7 @@ export class PreEventProjectionService {
         triggerProviderId: number,
         trx: Knex.Transaction
     ): Promise<void> {
-        if (!projectionEnabled()) return;
+        if (!dividendProjectionEnabled()) return;
         void preEventId;
         void triggerProviderId;
         void trx;
@@ -37,29 +39,39 @@ export class PreEventProjectionService {
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<void> {
-        if (!projectionEnabled()) return;
+        if (!dividendProjectionEnabled()) return;
         void preEventId;
         void trx;
         logger.debug('projectPositions: no-op for current adapter', { preEventId });
     }
 
+    /**
+     * Ensure fs_pre_events.monitoring_started_at is populated (idempotent, never overwrites).
+     * Runs for every adapter — the column now lives in the shared sports schema.
+     */
     static async ensureMonitoringStarted(
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<void> {
-        if (!projectionEnabled()) return;
-        void preEventId;
-        void trx;
-        logger.debug('ensureMonitoringStarted: no-op for current adapter', { preEventId });
+        await PreEventRepository.ensureMonitoringStarted(preEventId, trx);
     }
 
+    /**
+     * If the pre-event has reached a terminal status (FINISHED), stamp monitoring_ended_at.
+     * Idempotent — only moves the timestamp forward.
+     */
     static async checkAndSetMonitoringEnded(
         preEventId: number,
         trx: Knex.Transaction
     ): Promise<void> {
-        if (!projectionEnabled()) return;
-        void preEventId;
-        void trx;
-        logger.debug('checkAndSetMonitoringEnded: no-op for current adapter', { preEventId });
+        const preEvent = await PreEventRepository.getPreEvent(preEventId, trx);
+        if (!preEvent) return;
+
+        const finishedId = EVENT_STATUS_IDS.FINISHED;
+        if (finishedId == null) return;
+
+        if (Number(preEvent.event_status_id) !== Number(finishedId)) return;
+
+        await PreEventRepository.updateMonitoringEndedAt(preEventId, new Date(), trx);
     }
 }

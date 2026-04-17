@@ -447,6 +447,37 @@ export class PreEventParticipantRepository {
         }));
     }
 
+    /**
+     * Recompute linked_provider_ids and linked_provider_count for a canonical entry
+     * by scanning fs_provider_event_entries linked to this pre_event_entry_id.
+     * Idempotent and concurrency-safe when run inside a transaction with a prior
+     * SELECT ... FOR UPDATE on fs_pre_event_entries.id.
+     */
+    static async updateLinkedProviders(
+        preEventEntryId: number,
+        trx: Knex.Transaction
+    ): Promise<number[]> {
+        const rows = await trx(`${TABLES.PROVIDER_EVENT_PARTICIPANTS} as pep`)
+            .join(`${TABLES.PROVIDER_EVENTS} as pe`, 'pe.id', 'pep.provider_event_id')
+            .where('pep.pre_event_entry_id', preEventEntryId)
+            .select('pe.provider_id')
+            .distinct();
+
+        const providerIds = Array.from(
+            new Set<number>(rows.map((r: any) => Number(r.provider_id)))
+        ).sort((a, b) => a - b);
+
+        await trx(TABLES.PRE_EVENT_PARTICIPANTS)
+            .where('id', preEventEntryId)
+            .update({
+                linked_provider_ids: providerIds,
+                linked_provider_count: providerIds.length,
+                updated_at: new Date(),
+            });
+
+        return providerIds;
+    }
+
     static async getById(
         preEventEntryId: number,
         trx?: Knex.Transaction

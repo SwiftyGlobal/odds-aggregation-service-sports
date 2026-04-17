@@ -1,6 +1,9 @@
 /**
  * Pre Event Coverage Service
- * Computes and maintains provider coverage tracking fields on pre-events
+ * Computes and maintains linked_provider_ids on pre-events.
+ *
+ * Sports schema persists a single coverage array at event level:
+ * fs_pre_events.linked_provider_ids (= union of provider_ids with any linked provider_event).
  */
 
 import { Knex } from 'knex';
@@ -14,8 +17,8 @@ export class PreEventCoverageService {
 
     /**
      * Update coverage tracking fields for a pre-event
-     * Idempotent and concurrency-safe
-     * 
+     * Idempotent and concurrency-safe.
+     *
      * @param preEventId - The pre-event ID
      * @param trx - Optional transaction (if not provided, will create one)
      */
@@ -32,21 +35,16 @@ export class PreEventCoverageService {
                 return;
             }
 
-            // Compute all coverage arrays and counts
-            const coverageData = await PreEventCoverageRepository.computeCoverageArrays(
+            const linkedProviderIds = await PreEventCoverageRepository.computeLinkedProviderIds(
                 preEventId,
                 transaction
             );
 
-            // Update coverage fields
-            await PreEventRepository.updateCoverage(preEventId, coverageData, transaction);
+            await PreEventRepository.updateCoverage(preEventId, { linkedProviderIds }, transaction);
 
             logger.debug('Pre-event coverage updated', {
                 preEventId,
-                linkedCount: coverageData.linkedProviderIds.length,
-                identityMatchedCount: coverageData.identityMatchedProviderIds.length,
-                eligibleOddsCount: coverageData.eligibleOddsProviderIds.length,
-                fixedOddsAvailableCount: coverageData.fixedOddsAvailableProviderIds.length
+                linkedCount: linkedProviderIds.length,
             });
         };
 
@@ -56,6 +54,4 @@ export class PreEventCoverageService {
             await this.db.transaction(execute);
         }
     }
-
 }
-

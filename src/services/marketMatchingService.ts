@@ -244,12 +244,15 @@ export class MarketMatchingService {
             transaction
         );
 
-        const providerIds = [...new Set(providerMarkets.map((pm: any) => pm.provider_id))];
+        const providerIds = Array.from(
+            new Set<number>(providerMarkets.map((pm: any) => Number(pm.provider_id)))
+        ).sort((a, b) => a - b);
 
         await transaction(TABLES.PRE_MARKETS)
             .where('id', preMarketId)
             .update({
                 linked_provider_ids: providerIds,
+                linked_provider_count: providerIds.length,
                 updated_at: new Date()
             });
     }

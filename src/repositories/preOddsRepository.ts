@@ -41,6 +41,7 @@ export class PreOddsRepository {
             average_odds: row.average_odds ?? row.price,
             odds_status_id: row.odds_status_id ?? this.statusStringToId(row.selection_status),
             active: row.active ?? (row.selection_status !== 'removed' && row.selection_status !== 'invalid'),
+            provider_count: row.linked_provider_count ?? 0,
         };
     }
 
@@ -64,7 +65,7 @@ export class PreOddsRepository {
             odds_status_id: row.odds_status_id ?? this.statusStringToId(row.selection_status),
             provider_odds: row.provider_odds ?? '{}',
             display_odds: row.display_odds ?? '{}',
-            provider_count: row.provider_count ?? 0,
+            provider_count: row.linked_provider_count ?? 0,
         };
     }
 
@@ -108,11 +109,22 @@ export class PreOddsRepository {
         const displayPrices = metadata.display_odds;
         const insertDisplayName = (data.display_name?.trim() || data.option_key) as string;
 
+        // linked_provider_ids = all providers contributing a price to this selection
+        // (those included in the average + those excluded as outliers).
+        const linkedProviderIds = Array.from(
+            new Set<number>([
+                ...(data.display_odds_provider_ids ?? []),
+                ...(data.outlier_odds_provider_ids ?? []),
+            ])
+        ).sort((a, b) => a - b);
+        const formatArray = (arr: number[]): string => (arr.length === 0 ? '{}' : '{' + arr.join(',') + '}');
+
         const mergeFields: Record<string, unknown> = {
             pre_event_entry_id: data.pre_event_participant_id ?? null,
             current_price: data.average_odds,
             average_price: data.average_odds,
-            provider_count: data.provider_count ?? 0,
+            linked_provider_count: data.provider_count ?? 0,
+            linked_provider_ids: db.raw('?::int[]', [formatArray(linkedProviderIds)]),
             provider_prices: providerPrices,
             display_prices: displayPrices,
             selection_status: selectionStatus,
@@ -135,7 +147,8 @@ export class PreOddsRepository {
                 opening_price: data.average_odds,
                 current_price: data.average_odds,
                 average_price: data.average_odds,
-                provider_count: data.provider_count ?? 0,
+                linked_provider_count: data.provider_count ?? 0,
+                linked_provider_ids: db.raw('?::int[]', [formatArray(linkedProviderIds)]),
                 provider_prices: providerPrices,
                 display_prices: displayPrices,
                 selection_status: selectionStatus,
@@ -154,7 +167,7 @@ export class PreOddsRepository {
             pre_event_id: data.pre_event_id,
             price: preOdds.current_price,
             average_price: preOdds.average_price,
-            provider_count: preOdds.provider_count,
+            linked_provider_count: preOdds.linked_provider_count,
             provider_prices: preOdds.provider_prices,
             display_prices: preOdds.display_prices,
             selection_status: preOdds.selection_status,
@@ -194,6 +207,7 @@ export class PreOddsRepository {
             average_odds: row.price,
             active: row.selection_status !== 'removed' && row.selection_status !== 'invalid',
             odds_status_id: this.statusStringToId(row.selection_status),
+            provider_count: row.linked_provider_count ?? 0,
         }));
     }
 
@@ -215,6 +229,7 @@ export class PreOddsRepository {
             average_odds: row.price,
             active: row.selection_status !== 'removed' && row.selection_status !== 'invalid',
             odds_status_id: this.statusStringToId(row.selection_status),
+            provider_count: row.linked_provider_count ?? 0,
         }));
     }
 }

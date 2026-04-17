@@ -130,6 +130,11 @@ export class EventParticipantMatchingService {
                 transaction
             );
 
+            await PreEventParticipantRepository.updateLinkedProviders(
+                result.preEventParticipantId,
+                transaction
+            );
+
             logger.info('Event participant matched and linked', {
                 providerEventParticipantId,
                 preEventParticipantId: result.preEventParticipantId,
