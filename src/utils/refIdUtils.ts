@@ -19,9 +19,28 @@
  * Slugify a string: lowercase, replace non-alphanumeric with underscores,
  * collapse multiple underscores, trim leading/trailing underscores.
  */
+/**
+ * Normalize characters that don't decompose via NFD (standalone letters, not
+ * letter+combining-mark). Without this, names like "Højgaard" and "Straße"
+ * lose information when we strip non-ASCII.
+ */
+function foldSpecialLetters(s: string): string {
+    return s
+        .replace(/[øØ]/g, 'o')
+        .replace(/[æÆ]/g, 'ae')
+        .replace(/[œŒ]/g, 'oe')
+        .replace(/[åÅ]/g, 'a')  // covered by NFD already but explicit is safer
+        .replace(/[ß]/g, 'ss')
+        .replace(/[þÞ]/g, 'th')
+        .replace(/[ðÐĐđ]/g, 'd')
+        .replace(/[łŁ]/g, 'l');
+}
+
 export function slugify(value: string): string {
     if (!value) return '';
-    return value
+    return foldSpecialLetters(value)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .trim()
         .replace(/[^a-z0-9]+/g, '_')   // replace non-alphanumeric runs with _
@@ -124,12 +143,39 @@ export function buildParticipantRefId(
 export const PRE_EVENT_ENTRY_REF_ID_MAX_LEN = 255;
 
 /**
- * Canonical `fs_pre_event_entries.entry_ref_id`: extends the pre-event ref with the runner segment,
- * same dot-separated style as `fs_pre_events.event_ref_id` / `fs_pre_event_groups.group_ref_id`.
+ * Golf participant match key: `lastname-<first initial>`, diacritics stripped.
  *
- * Example: `GOLF.202605170900.UNK.uspga_championship` + Brooks Koepka ->
- * `GOLF.202605170900.UNK.uspga_championship.brookskoepka`
+ * Collapses naming variants that refer to the same golfer within a tournament
+ * so cross-provider aggregation lands on one canonical `fs_pre_event_entries`:
+ *   "Matthew Fitzpatrick" / "Matt Fitzpatrick"    -> "fitzpatrick-m"
+ *   "Nicolai Højgaard"    / "Nicolai Hojgaard"    -> "hojgaard-n"
+ *   "Sung-Jae Im"         / "Sungjae Im"          -> "im-s"
+ *   "Nico Echavarria"     / "Nicolas Echavarria"  -> "echavarria-n"
+ *
+ * Tradeoff: two different golfers who share a surname + first initial
+ * ("M. Kuchar" vs "M. Kuchar") will collide. Accepted per product call.
+ *
+ * Returns "" when the name has no extractable surname.
  */
-export function buildPreEventEntryRefId(eventRefId: string, participantDisplayOrName: string): string {
-    return buildParticipantRefId(eventRefId, participantDisplayOrName).slice(0, PRE_EVENT_ENTRY_REF_ID_MAX_LEN);
+export function buildGolfParticipantMatchKey(fullName: string): string {
+    if (!fullName) return '';
+    const normalized = foldSpecialLetters(fullName)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    if (!normalized) return '';
+
+    const tokens = normalized
+        .split(/[\s\-]+/)
+        .map((t) => t.replace(/[^a-z0-9]/g, ''))
+        .filter((t) => t.length > 0);
+
+    if (tokens.length === 0) return '';
+    const first = tokens[0] ?? '';
+    if (tokens.length === 1) return first;
+
+    const firstInitial = first.charAt(0);
+    const lastname = tokens[tokens.length - 1] ?? '';
+    return `${lastname}-${firstInitial}`;
 }

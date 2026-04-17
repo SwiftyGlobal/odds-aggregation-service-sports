@@ -13,8 +13,8 @@ import { PreEventParticipantRepository } from '../repositories/preEventParticipa
 import { EnsureService } from './ensureService.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
 import {
+    buildGolfParticipantMatchKey,
     buildParticipantRefId,
-    buildPreEventEntryRefId,
     extractParticipantName,
     slugify,
 } from '../utils/refIdUtils.js';
@@ -187,10 +187,18 @@ export class EventParticipantMatchingService {
         const adapter = getSportAdapter();
         let canonicalRefId: string;
         if (adapter.adapterKey === 'golf') {
+            // Collapse naming variants (Matt/Matthew, diacritics, nicknames) onto a
+            // single `<lastname>-<first-initial>` key so cross-provider entries in
+            // the same event converge on one canonical fs_pre_event_entries row.
+            const nameForKey = (providerEventParticipant.display_name || participantName || '').trim();
+            const matchKey = buildGolfParticipantMatchKey(nameForKey);
             const rawPp = providerEventParticipant.participant_ref_id;
-            canonicalRefId = rawPp?.trim()
-                ? PreEventParticipantRepository.truncateParticipantRefId(String(rawPp))
-                : PreEventParticipantRepository.truncateParticipantRefId(slugify(participantName) || 'unknown');
+            const fallback = rawPp?.trim()
+                ? String(rawPp)
+                : slugify(participantName) || 'unknown';
+            canonicalRefId = PreEventParticipantRepository.truncateParticipantRefId(
+                matchKey || fallback
+            );
         } else {
             canonicalRefId = (parentEvent?.event_ref_id && participantName)
                 ? buildParticipantRefId(parentEvent.event_ref_id, participantName)
@@ -204,13 +212,17 @@ export class EventParticipantMatchingService {
             providerEventParticipant.participant_ref_id ||
             canonicalRefId;
 
-        /** Canonical dot-separated ref aligned with fs_pre_events.event_ref_id, stored on fs_pre_event_entries */
-        const canonicalEntryRefId =
-            parentEvent?.event_ref_id && participantName
-                ? buildPreEventEntryRefId(parentEvent.event_ref_id, participantName)
-                : providerEventParticipant.entry_ref_id
-                    ? String(providerEventParticipant.entry_ref_id).slice(0, 255)
-                    : undefined;
+        /**
+         * Canonical dot-separated ref stored on fs_pre_event_entries: always
+         * `<event_ref_id>.<canonicalRefId>` so the last segment is identical
+         * to fs_pre_participants.participant_ref_id (e.g. golf match key
+         * `aberg-l` instead of the raw display-name slug `ludvig_aberg`).
+         */
+        const canonicalEntryRefId = parentEvent?.event_ref_id
+            ? `${parentEvent.event_ref_id}.${canonicalRefId}`.slice(0, 255)
+            : providerEventParticipant.entry_ref_id
+                ? String(providerEventParticipant.entry_ref_id).slice(0, 255)
+                : undefined;
 
         const preParticipantId = await PreEventParticipantRepository.ensurePreParticipant(
             preSportId,
