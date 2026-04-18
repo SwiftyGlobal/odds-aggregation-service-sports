@@ -197,7 +197,8 @@ export class OddsAggregationService {
         optionKey: string,
         preEventId: number,
         preEventParticipantId: number | null,
-        trx?: Knex.Transaction
+        trx?: Knex.Transaction,
+        options?: { bypassMaxAge?: boolean }
     ): Promise<void> {
         const execute = async (transaction: any) => {
             try {
@@ -206,7 +207,8 @@ export class OddsAggregationService {
                     preMarketId,
                     preEventParticipantId,
                     CONFIG.oddsCalculation.maxAgeSeconds,
-                    transaction
+                    transaction,
+                    options?.bypassMaxAge ? { bypassMaxAge: true } : undefined
                 );
 
                 logger.debug('Found provider odds for combination', {
@@ -764,12 +766,15 @@ export class OddsAggregationService {
             const canonicalOptionKey = preParticipant?.ref_id || String(preEventParticipantId);
 
             for (const preMarket of preMarkets) {
+                // Bypass max-age cutoff: by definition, deferred selections waiting
+                // on this participant may be older than the polling cutoff window.
                 await this.aggregateOddsForCombination(
                     preMarket.id,
                     canonicalOptionKey,
                     preEventId,
                     preEventParticipantId,
-                    transaction
+                    transaction,
+                    { bypassMaxAge: true }
                 );
             }
         };

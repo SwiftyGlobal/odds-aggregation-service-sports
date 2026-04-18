@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { TABLES } from '../constants/tables.js';
 import { EventGroupMatchingService } from './eventGroupMatchingService.js';
 import { EventMatchingService } from './eventMatchingService.js';
+import { EventPeriodMatchingService } from './eventPeriodMatchingService.js';
 import { EventParticipantMatchingService } from './eventParticipantMatchingService.js';
 import { MarketMatchingService } from './marketMatchingService.js';
 import { OddsAggregationService } from './oddsAggregationService.js';
@@ -53,6 +54,8 @@ export class PollingChangeProcessor {
                 await this.processProviderEventGroup(rowId, pollCycleId);
             } else if (table === TABLES.PROVIDER_EVENTS) {
                 await this.processEvent(row, isNew, pollCycleId);
+            } else if (TABLES.PROVIDER_EVENT_PERIODS && table === TABLES.PROVIDER_EVENT_PERIODS) {
+                await this.processEventPeriod(row, pollCycleId);
             } else if (table === TABLES.PROVIDER_EVENT_PARTICIPANTS) {
                 await this.processParticipant(row, isNew, pollCycleId);
             } else if (table === TABLES.PROVIDER_MARKETS) {
@@ -223,6 +226,29 @@ export class PollingChangeProcessor {
             setTimeout(() => {
                 projectionInProgress.delete(preEventIdForProjection);
             }, 500);
+        }
+    }
+
+    /**
+     * EVENT PERIODS - Resolve provider period → pre_event_period, write back-ref
+     */
+    private static async processEventPeriod(row: any, pollCycleId: string): Promise<void> {
+        const rowId = row.id;
+        const providerEventId = row.provider_event_id;
+
+        if (row.pre_event_period_id) {
+            return;
+        }
+
+        if (providerEventId) {
+            const releasePeriodLock = await DbConcurrencyManager.acquirePreEventLock(`event-${providerEventId}`);
+            try {
+                await EventPeriodMatchingService.processEventPeriodChange(rowId, pollCycleId);
+            } finally {
+                releasePeriodLock();
+            }
+        } else {
+            await EventPeriodMatchingService.processEventPeriodChange(rowId, pollCycleId);
         }
     }
 

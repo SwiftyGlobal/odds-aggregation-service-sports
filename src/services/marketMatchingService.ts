@@ -14,6 +14,7 @@ import { MarketRepository } from '../repositories/marketRepository.js';
 import { MarketTypeRepository } from '../repositories/marketTypeRepository.js';
 import { EventRepository } from '../repositories/eventRepository.js';
 import { EnsureService } from './ensureService.js';
+import { EventPeriodMatchingService } from './eventPeriodMatchingService.js';
 import { DatabaseService } from '../utils/database.js';
 import { DbConcurrencyManager } from '../utils/dbConcurrencyManager.js';
 import { TABLES } from '../constants/tables.js';
@@ -93,11 +94,25 @@ export class MarketMatchingService {
                 return;
             }
 
-            // Build canonical ref_id for this market
+            // Resolve canonical period for period-scoped markets (e.g. golf rounds).
+            // Provider may have written `provider_event_period_id` only when the
+            // market is period-scoped — so a null here just means "event-wide".
+            let preEventPeriodId: number | null = null;
+            if (providerMarket.provider_event_period_id) {
+                preEventPeriodId = await EventPeriodMatchingService.ensurePreEventPeriod(
+                    providerMarket.provider_event_period_id,
+                    transaction
+                );
+            }
+
+            // Build canonical ref_id for this market.
+            // Period-scoped markets (e.g. round 1 vs round 2 three-ball) must
+            // not collide on (template, sorted_entry_ids) — fold the period in.
             const canonicalRefId = await this.buildCanonicalRefId(
                 providerMarket,
                 preEventId,
                 preMarketTypeId,
+                preEventPeriodId,
                 transaction
             );
 
@@ -106,6 +121,7 @@ export class MarketMatchingService {
                 {
                     ref_id: canonicalRefId,
                     pre_event_id: preEventId,
+                    pre_event_period_id: preEventPeriodId,
                     pre_market_type_id: preMarketTypeId,
                     name: providerMarket.name,
                     display_name: providerMarket.display_name,
@@ -150,45 +166,48 @@ export class MarketMatchingService {
     }
 
     /**
-     * Build canonical ref_id for a market
+     * Build canonical ref_id for a market.
      *
-     * For outrights: uses the pre_market_type code (e.g., "outright_winner")
-     * For group markets (3-ball): uses sorted pre_event_participant_ids (e.g., "42:78:103")
+     * Identity composition:
+     *   `<preEventId>[:p<preEventPeriodId>]:(<template>|group:<sortedEntryIds>)`
+     *
+     * - Period segment is included only when the market is period-scoped
+     *   (`preEventPeriodId != null`). Event-wide markets stay on the legacy
+     *   `<preEventId>:<template>` key for backwards compatibility.
+     * - Group markets (e.g. 3-ball) use the sorted pre_event_participant_ids
+     *   passed in via `metadata.pre_event_participant_ids`. The same trio in
+     *   round 1 vs round 2 must produce two distinct pre_markets — that is
+     *   what the period segment guarantees.
      */
     private static async buildCanonicalRefId(
         providerMarket: any,
         preEventId: number,
         preMarketTypeId: number,
+        preEventPeriodId: number | null,
         transaction: Knex.Transaction
     ): Promise<string> {
-        // Get the pre_market_type to determine the type
-            const preMarketType = await MarketTypeRepository.getPreMarketType(preMarketTypeId, transaction);
-            const marketTypeName =
-                preMarketType?.market_type_name ||
-                preMarketType?.name ||
-                'unknown';
-            const marketTypeCode =
-                preMarketType?.market_type_code ||
-                marketTypeName;
+        const preMarketType = await MarketTypeRepository.getPreMarketType(preMarketTypeId, transaction);
+        const marketTypeName =
+            preMarketType?.market_type_name ||
+            preMarketType?.name ||
+            'unknown';
+        const marketTypeCode =
+            preMarketType?.market_type_code ||
+            marketTypeName;
 
-        // For outrights (Winner, Top 5, Top 10, Top 20), use market_type name as ref_id
-        // This means there's one pre_market per market_type per event
-        // For group markets, the ref_id would be built from participant IDs
-        // For now, use the market_type name + any distinguishing metadata
         const metadata = typeof providerMarket.metadata === 'string'
             ? JSON.parse(providerMarket.metadata || '{}')
             : providerMarket.metadata || {};
 
-        // If metadata has participant_ids (for group markets like 3-ball),
-        // use sorted participant IDs as ref_id
+        const periodSegment = preEventPeriodId != null ? `:p${preEventPeriodId}` : '';
+
         if (metadata.pre_event_participant_ids && Array.isArray(metadata.pre_event_participant_ids)) {
             const sorted = [...metadata.pre_event_participant_ids].sort((a: number, b: number) => a - b);
-            return `${preEventId}:group:${sorted.join(':')}`;
+            return `${preEventId}${periodSegment}:group:${sorted.join(':')}`;
         }
 
-        // Default: use event-scoped market type key so ref_id stays globally unique.
         const normalizedType = String(marketTypeCode).toLowerCase().replace(/\s+/g, '_');
-        return `${preEventId}:${normalizedType}`;
+        return `${preEventId}${periodSegment}:${normalizedType}`;
     }
 
     /**

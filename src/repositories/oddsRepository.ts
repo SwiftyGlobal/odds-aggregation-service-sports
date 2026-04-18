@@ -72,7 +72,8 @@ export class OddsRepository {
         preMarketId: number,
         preEventParticipantId: number | null,
         maxAgeSeconds: number,
-        trx?: Knex.Transaction
+        trx?: Knex.Transaction,
+        options?: { bypassMaxAge?: boolean }
     ): Promise<any[]> {
         const db = trx || this.db;
         const cutoffTime = new Date(Date.now() - maxAgeSeconds * 1000);
@@ -93,9 +94,13 @@ export class OddsRepository {
             .join(`${TABLES.PROVIDER_MARKETS} as pm`, 'po.provider_market_id', 'pm.id')
             .whereIn('po.provider_market_id', providerMarketIds)
             .whereIn('po.selection_status', ['active', 'suspended'])
-            .where('po.updated_at', '>', cutoffTime)
-            .orderBy('po.updated_at', 'desc')
-            .select(
+            .orderBy('po.updated_at', 'desc');
+
+        if (!options?.bypassMaxAge) {
+            query = query.where('po.updated_at', '>', cutoffTime);
+        }
+
+        query = query.select(
                 'po.*',
                 'pm.provider_id',
                 'po.provider_event_entry_id as provider_event_participant_id',
