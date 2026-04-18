@@ -32,7 +32,7 @@ export const golfAdapter: SportAdapter = {
         PRE_ODDS_HISTORY: 'fs_pre_selection_price_history',
         PRE_EVENT_PARTICIPANTS_HISTORY: 'fs_pre_event_entries',
         OUTBOX_EVENTS: 'fs_outbox_events',
-        FAILED_EVENTS: 'fs_cdc_failed_events',
+        FAILED_EVENTS: 'fs_failed_events',
     },
     polling: {
         tables: [

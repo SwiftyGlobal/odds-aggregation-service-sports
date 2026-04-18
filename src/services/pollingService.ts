@@ -11,7 +11,7 @@ import { POLLING_CONSTANTS } from '../constants/polling.js';
 import { PollingRepository, getPolledRowPrimaryKey } from '../repositories/pollingRepository.js';
 import { PollingChangeProcessor } from './pollingChangeProcessor.js';
 import { isTransientError, getErrorCode } from '../utils/errorClassification.js';
-import { FailedEventRepository } from '../repositories/cdcFailedEventRepository.js';
+import { FailedEventRepository } from '../repositories/failedEventRepository.js';
 
 // Throttle interval for queue-size warnings (ms)
 const QUEUE_WARN_INTERVAL_MS = 10_000;

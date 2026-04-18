@@ -12,7 +12,7 @@ const preEventLocks = new Map<string, Promise<void>>();
 
 export class DbConcurrencyManager {
     private static currentDbConcurrency = 0;
-    private static readonly maxDbConcurrency = Number(process.env.DB_CONCURRENCY ?? process.env.CDC_DB_CONCURRENCY ?? '15');
+    private static readonly maxDbConcurrency = Number(process.env.DB_CONCURRENCY ?? '15');
 
     /**
      * Acquire an exclusive lock for a preEventId
