@@ -25,15 +25,33 @@ export class PollingRepository {
         limit: number
     ): Promise<any[]> {
         const db = DatabaseService.getInstance();
+        const adapter = getSportAdapter();
 
         const idColumn =
-            getSportAdapter().polling.orderByIdColumn?.[table] ?? 'id';
+            adapter.polling.orderByIdColumn?.[table] ?? 'id';
 
-        const rows = await db(table)
-            .where('updated_at', '>', since)
+        const scope = adapter.polling.sportScope?.[table];
+
+        let query = db(table).where('updated_at', '>', since);
+
+        if (scope) {
+            query = query.whereIn(
+                `${table}.${idColumn}`,
+                scope.subqueryBuilder(db, adapter.sport.id)
+            );
+        } else {
+            // No sport scope configured -> the query may pull rows for other
+            // sports living in the same DB. Safe only for single-tenant DBs.
+            logger.warn(
+                'PollingRepository.getChangedRows: no sportScope for table; not safe for per-sport ECS deploy',
+                { table }
+            );
+        }
+
+        const rows = await query
             .orderBy([
                 { column: 'updated_at', order: 'asc' },
-                { column: idColumn, order: 'asc' }
+                { column: idColumn, order: 'asc' },
             ])
             .limit(limit);
 
@@ -58,11 +76,10 @@ export class PollingRepository {
         Map<string, { lastUpdatedAt: Date; lastId: number }>
     > {
         const db = DatabaseService.getInstance();
-        const rows = await db('fs_agg_polling_cursors').select(
-            'table_name',
-            'last_updated_at',
-            'last_id'
-        );
+        const sportId = getSportAdapter().sport.id;
+        const rows = await db('fs_agg_polling_cursors')
+            .where('sport_id', sportId)
+            .select('table_name', 'last_updated_at', 'last_id');
         const out = new Map<string, { lastUpdatedAt: Date; lastId: number }>();
         for (const row of rows) {
             out.set(row.table_name, {
@@ -82,14 +99,16 @@ export class PollingRepository {
         lastId: number
     ): Promise<void> {
         const db = DatabaseService.getInstance();
+        const sportId = getSportAdapter().sport.id;
         await db('fs_agg_polling_cursors')
             .insert({
+                sport_id: sportId,
                 table_name: tableName,
                 last_updated_at: lastUpdatedAt,
                 last_id: lastId,
                 updated_at: new Date(),
             })
-            .onConflict('table_name')
+            .onConflict(['sport_id', 'table_name'])
             .merge({
                 last_updated_at: lastUpdatedAt,
                 last_id: lastId,

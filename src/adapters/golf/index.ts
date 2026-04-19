@@ -43,6 +43,54 @@ export const golfAdapter: SportAdapter = {
             'fs_provider_event_entries',
             'fs_provider_selections',
         ],
+        sportScope: {
+            fs_provider_event_groups: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_event_groups')
+                        .select('id')
+                        .where('provider_sport_id', sportId),
+            },
+            fs_provider_events: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_events as e')
+                        .join('fs_provider_event_groups as g', 'e.provider_event_group_id', 'g.id')
+                        .where('g.provider_sport_id', sportId)
+                        .select('e.id'),
+            },
+            fs_provider_event_periods: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_event_periods as p')
+                        .join('fs_provider_events as e', 'p.provider_event_id', 'e.id')
+                        .join('fs_provider_event_groups as g', 'e.provider_event_group_id', 'g.id')
+                        .where('g.provider_sport_id', sportId)
+                        .select('p.id'),
+            },
+            fs_provider_event_entries: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_event_entries as ent')
+                        .join('fs_provider_events as e', 'ent.provider_event_id', 'e.id')
+                        .join('fs_provider_event_groups as g', 'e.provider_event_group_id', 'g.id')
+                        .where('g.provider_sport_id', sportId)
+                        .select('ent.id'),
+            },
+            fs_provider_markets: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_markets as m')
+                        .join('fs_provider_events as e', 'm.provider_event_id', 'e.id')
+                        .join('fs_provider_event_groups as g', 'e.provider_event_group_id', 'g.id')
+                        .where('g.provider_sport_id', sportId)
+                        .select('m.id'),
+            },
+            fs_provider_selections: {
+                subqueryBuilder: (db, sportId) =>
+                    db('fs_provider_selections as s')
+                        .join('fs_provider_markets as m', 's.provider_market_id', 'm.id')
+                        .join('fs_provider_events as e', 'm.provider_event_id', 'e.id')
+                        .join('fs_provider_event_groups as g', 'e.provider_event_group_id', 'g.id')
+                        .where('g.provider_sport_id', sportId)
+                        .select('s.id'),
+            },
+        },
     },
     providers: [
         { id: 1, name: 'unibet', includeInHealthCheck: healthCheckEnabled('HEALTH_CHECK_UNIBET_ENABLED') },

@@ -92,6 +92,17 @@ export interface SportAdapterPolling {
      * Tie-break column for ORDER BY (updated_at, ?). Defaults to `id`.
      */
     orderByIdColumn?: Record<string, string>;
+    /**
+     * Per-table sport scoping config used by PollingRepository.getChangedRows.
+     * Allows two ECS tasks (e.g. golf + basketball) on the same DB to safely poll
+     * different sport rows without racing.
+     *
+     * Each entry returns a knex subquery selecting `<table>.id` values for the
+     * current sport. The repository runs `WHERE <table>.<idCol> IN (subquery)`.
+     */
+    sportScope?: Record<string, {
+        subqueryBuilder: (db: any, sportId: number) => any;
+    }>;
 }
 
 /**
